@@ -302,6 +302,52 @@ st.markdown(f"""
     div.stSelectbox {{
         max-width: 90% !important;
     }}
+    
+    /* Modal overlay styles */
+    .modal-overlay {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.7);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }}
+    .modal-container {{
+        background-color: #1E1E1E;
+        border-radius: 5px;
+        width: 90%;
+        max-width: 1200px;
+        max-height: 90vh;
+        padding: 20px;
+        overflow-y: auto;
+    }}
+    .close-button {{
+        float: right;
+        color: white;
+        cursor: pointer;
+        font-size: 20px;
+        margin-bottom: 15px;
+    }}
+    .match-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }}
+    .match-title {{
+        margin: 0;
+        flex-grow: 1;
+    }}
+    .expand-button {{
+        float: right;
+        margin-left: 15px;
+        color: #4287f5;
+        cursor: pointer;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -351,6 +397,14 @@ if 'feature_method' not in st.session_state:
     
 if 'n_components' not in st.session_state:
     st.session_state.n_components = 2  # Default number of components
+    
+# Initialize expanded view modal state
+if 'show_modal' not in st.session_state:
+    st.session_state.show_modal = False
+    st.session_state.modal_match_id = None
+    st.session_state.modal_match_date = None
+    st.session_state.modal_match_df = None
+    st.session_state.modal_distance = None
 
 # Initialize data provider - don't cache to avoid timeframe mixups
 def get_data_provider():
@@ -367,23 +421,58 @@ async def load_market_data(symbol="BTC", interval='30m', days=30):
     current_time = datetime.now()
     start_time = (current_time - timedelta(days=days)).isoformat()
     
-    df = await provider.get_historical_ohlcv(
-        symbol=symbol, 
-        interval=interval,
-        start_time=start_time,
-        end_time=current_time.isoformat()
-    )
-    
-    # Convert timestamp to datetime for better plotting
-    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
-    df['idx'] = range(len(df))
-    
-    return df
+    try:
+        df = await provider.get_historical_ohlcv(
+            symbol=symbol, 
+            interval=interval,
+            start_time=start_time,
+            end_time=current_time.isoformat()
+        )
+        
+        # Check if dataframe is empty or missing expected columns
+        if df is None or df.empty:
+            st.error(f"Unable to fetch {symbol} data. Please try again later.")
+            return pd.DataFrame()
+            
+        # Check for required columns
+        required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            st.error(f"Data format error: Missing columns: {', '.join(missing_columns)}")
+            st.error("API response columns: " + ", ".join(df.columns.tolist()))
+            return pd.DataFrame()
+        
+        # Convert timestamp to datetime for better plotting
+        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df['idx'] = range(len(df))
+        
+        return df
+    except Exception as e:
+        st.error(f"Error loading market data: {str(e)}")
+        # Print more debug info
+        st.error(f"Error details: {type(e).__name__}")
+        import traceback
+        st.error(traceback.format_exc())
+        return pd.DataFrame()
 
 # Create a Plotly candlestick chart with selection capabilities
 def create_candlestick_chart(df, selected_range=None, style=None):
     if df is None or df.empty:
-        return None
+        # Return an empty figure with a message instead of None
+        empty_fig = go.Figure()
+        empty_fig.add_annotation(
+            text="No data available. Please try a different timeframe or check your connection.",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(color="#999999", size=14)
+        )
+        empty_fig.update_layout(
+            height=400,
+            plot_bgcolor="#1e1e1e",
+            paper_bgcolor="#1e1e1e"
+        )
+        return empty_fig, {"displayModeBar": False}
     
     if style is None:
         style = st.session_state.candle_style
@@ -957,11 +1046,11 @@ def plot_match_results(source_pattern, matches, following_points=20, style=None,
                     name=None,  # Removed "Pattern Match" title
                     increasing=dict(
                         line=dict(color='rgba(66, 135, 245, 0.7)'),  # Light blue
-                        fillcolor='rgba(66, 135, 245, 0.5)'          # Light blue with transparency
+                        fillcolor='rgba(66, 135, 245, 0.7)'          # Light blue with transparency
                     ),
                     decreasing=dict(
                         line=dict(color='rgba(26, 86, 196, 0.7)'),   # Darker blue
-                        fillcolor='rgba(26, 86, 196, 0.5)'           # Darker blue with transparency
+                        fillcolor='rgba(26, 86, 196, 0.7)'           # Darker blue with transparency
                     ),
                     hoverinfo="x+y"
                 ),
@@ -1644,7 +1733,11 @@ if st.session_state.btc_data is not None:
         unsafe_allow_html=True
     )
     
-    st.plotly_chart(fig, use_container_width=True, config=config)
+    # Check if we have a valid figure
+    if fig is not None:
+        st.plotly_chart(fig, use_container_width=True, config=config)
+    else:
+        st.error("Unable to create chart. Please try different settings or refresh the page.")
     
     # Display the number of candles prominently - without blue info box - even more compact
     if st.session_state.selected_range['start_idx'] is not None and st.session_state.selected_range['end_idx'] is not None:
@@ -2471,11 +2564,11 @@ if st.session_state.search_results:
                         name=None,
                         increasing=dict(
                             line=dict(color='rgba(66, 135, 245, 0.7)'),  # Light blue
-                            fillcolor='rgba(66, 135, 245, 0.5)'          # Light blue with transparency
+                            fillcolor='rgba(66, 135, 245, 0.7)'          # Light blue with transparency
                         ),
                         decreasing=dict(
                             line=dict(color='rgba(26, 86, 196, 0.7)'),   # Darker blue
-                            fillcolor='rgba(26, 86, 196, 0.5)'           # Darker blue with transparency
+                            fillcolor='rgba(26, 86, 196, 0.7)'           # Darker blue with transparency
                         ),
                         hoverinfo="x+y"
                     )
@@ -2605,6 +2698,121 @@ if st.session_state.search_results:
             # Add a small spacer before the charts
             st.markdown("<div style='height: 15px'></div>", unsafe_allow_html=True)
             
+            # Function to create expanded view chart
+            def create_expanded_match_view(source_data, match_data, pattern_indices, match_date):
+                """Create expanded charts for both match and reference pattern"""
+                
+                # Calculate how much context to show (equal on both sides)
+                match_start, match_end = pattern_indices
+                pattern_length = match_end - match_start + 1
+                context_size = pattern_length * 2  # Show 2x pattern length as context
+                
+                # Get all indices as a list for easier manipulation
+                all_indices = list(range(len(match_data)))
+                                
+                # Create figure with two subplots stacked vertically
+                fig = make_subplots(
+                    rows=2, 
+                    cols=1,
+                    subplot_titles=(
+                        f"Matched Pattern from {match_date} (with context)",
+                        "Reference Pattern"
+                    ),
+                    vertical_spacing=0.12,
+                    row_heights=[0.5, 0.5]  # Equal height for both charts
+                )
+                
+                # 1. Add matched pattern with context (all data with regular colors)
+                fig.add_trace(
+                    go.Candlestick(
+                        x=match_data.index,
+                        open=match_data['open'],
+                        high=match_data['high'],
+                        low=match_data['low'],
+                        close=match_data['close'],
+                        increasing_line_color='#26a69a', 
+                        decreasing_line_color='#ef5350',
+                        name="Context"
+                    ),
+                    row=1, col=1
+                )
+                
+                # 2. Highlight the actual pattern in blue (overlay)
+                # Only if the pattern indices are valid
+                if match_start < len(match_data) and match_end < len(match_data):
+                    pattern_data = match_data.iloc[match_start:match_end+1]
+                    fig.add_trace(
+                        go.Candlestick(
+                            x=pattern_data.index,
+                            open=pattern_data['open'],
+                            high=pattern_data['high'],
+                            low=pattern_data['low'],
+                            close=pattern_data['close'],
+                            increasing_line_color='#1E88E5', 
+                            decreasing_line_color='#1E88E5',
+                            name="Pattern Match"
+                        ),
+                        row=1, col=1
+                    )
+                
+                    # 3. Add vertical line at the end of the pattern
+                    if match_end < len(match_data):
+                        fig.add_vline(
+                            x=match_data.index[match_end], 
+                            line_width=2, 
+                            line_dash="dash", 
+                            line_color="#1E88E5",
+                            row=1
+                        )
+                
+                # 4. Add reference pattern (source pattern with context)
+                fig.add_trace(
+                    go.Candlestick(
+                        x=source_data.index,
+                        open=source_data['open'],
+                        high=source_data['high'],
+                        low=source_data['low'],
+                        close=source_data['close'],
+                        increasing_line_color='#26a69a',
+                        decreasing_line_color='#ef5350',
+                        name="Reference Context"
+                    ),
+                    row=2, col=1
+                )
+                
+                # 5. Highlight the pattern part of the reference (blue overlay)
+                # We assume the pattern is at the end of the source data
+                pattern_start = max(0, len(source_data) - pattern_length)
+                pattern_data = source_data.iloc[pattern_start:]
+                
+                fig.add_trace(
+                    go.Candlestick(
+                        x=pattern_data.index,
+                        open=pattern_data['open'],
+                        high=pattern_data['high'],
+                        low=pattern_data['low'],
+                        close=pattern_data['close'],
+                        increasing_line_color='#1E88E5',
+                        decreasing_line_color='#1E88E5',
+                        name="Reference Pattern"
+                    ),
+                    row=2, col=1
+                )
+                
+                # Configure layout to match main chart style
+                fig.update_layout(
+                    height=800,  # Tall chart for detail
+                    template="plotly_dark",
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(l=10, r=10, t=50, b=10),
+                    showlegend=False,
+                    xaxis_rangeslider_visible=False,
+                    xaxis2_rangeslider_visible=False
+                )
+                
+                return fig
+            
             # Precompute the median price comparison for each match
             match_median_results = {}
             for match_idx, match in enumerate(filtered_matches):
@@ -2643,13 +2851,29 @@ if st.session_state.search_results:
                 else:
                     median_result_styled = f"<span style='color:#999999'>{median_result}</span>"  # Grey
                 
+                # Create columns for match header - title on left, button on right
+                match_header_cols = st.columns([0.85, 0.15])
+                
                 # Header with match info and median comparison - with different score label based on analysis method
                 score_label = "Feature Distance" if results['type'] == 'feature_pattern' else "Shape Distance"
-                st.markdown(
-                    f"**Match #{i+1}**: {datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')} "
-                    f"({score_label}: {match['distance']:.4f}). Past/future median: {median_result_styled}", 
-                    unsafe_allow_html=True
-                )
+                
+                with match_header_cols[0]:
+                    st.markdown(
+                        f"**Match #{i+1}**: {datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')} "
+                        f"({score_label}: {match['distance']:.4f}). Past/future median: {median_result_styled}", 
+                        unsafe_allow_html=True
+                    )
+                
+                # Add Expand View button on the right
+                with match_header_cols[1]:
+                    # Initialize expanded state for this match if not already in session state
+                    if f"expand_{i}" not in st.session_state:
+                        st.session_state[f"expand_{i}"] = False
+                    
+                    # Button to toggle expanded view
+                    if st.button("Expand View", key=f"expand_button_{i}"):
+                        # Toggle the expanded state for this match
+                        st.session_state[f"expand_{i}"] = not st.session_state[f"expand_{i}"]
                 
                 # Create individual figure for this match
                 match_fig = go.Figure()
@@ -2878,5 +3102,449 @@ if st.session_state.search_results:
                 # Display the match chart without controls and ensure full container width
                 # Pass explicit width of 100% to ensure chart uses all available space
                 st.plotly_chart(match_fig, use_container_width=True, config={'displayModeBar': False})
+                
+                # If expanded view is toggled for this match, display expanded view right after this chart
+                if st.session_state.get(f"expand_{i}", False):
+                    with st.container():
+                        # Add a small visual separator
+                        st.markdown("<div style='border-left: 4px solid #4287f5; padding-left: 10px; margin: 10px 0;'>", unsafe_allow_html=True)
+                        
+                        # Get the pattern length and match date
+                        pattern_length = len(source_pattern)
+                        match_date = datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')
+                        match_df = pd.DataFrame(match["pattern_data"])
+                        pattern_indices = (0, pattern_length-1)
+                        
+                        # Create match chart with full context
+                        st.write("**Match Pattern in Full Context**")
+                        
+                        # Get data in datetime format
+                        match_df_dates = match_df.copy()
+                        match_df_dates['datetime'] = [datetime.fromtimestamp(ts/1000) for ts in match_df_dates['timestamp']]
+                        match_start, match_end = pattern_indices
+                        
+                        # Create the context data and charts
+                        # Load data provider to get more context around the match
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        provider = get_data_provider()
+                        
+                        # Calculate pattern midpoint to center it
+                        pattern_section = match_df_dates.iloc[match_start:match_end+1]
+                        pattern_midpoint = pattern_section['datetime'].mean()
+                        
+                        # Calculate time range for context - use the same range as the main chart
+                        days_to_load = st.session_state.days_to_load if 'days_to_load' in st.session_state else 30
+                        interval = st.session_state.interval if 'interval' in st.session_state else '30m'
+                        
+                        pattern_midpoint_ts = pattern_midpoint.timestamp() * 1000  # Convert to milliseconds
+                        half_range_ms = days_to_load * 24 * 60 * 60 * 1000 / 2  # Half the range in milliseconds
+                        context_start_ts = pattern_midpoint_ts - half_range_ms
+                        context_end_ts = pattern_midpoint_ts + half_range_ms
+                        
+                        # Convert to ISO format for the API
+                        context_start_time = datetime.fromtimestamp(context_start_ts/1000).isoformat()
+                        context_end_time = datetime.fromtimestamp(context_end_ts/1000).isoformat()
+                        
+                        # Create expanded view match figure
+                        match_exp_fig = go.Figure()
+                        
+                        try:
+                            # Get full context data
+                            context_data = loop.run_until_complete(
+                                provider.get_historical_ohlcv(
+                                    symbol=st.session_state.selected_coin,
+                                    interval=interval,
+                                    start_time=context_start_time,
+                                    end_time=context_end_time
+                                )
+                            )
+                            
+                            if context_data is not None and not context_data.empty:
+                                # Convert timestamp to datetime for plotting
+                                context_data['datetime'] = pd.to_datetime(context_data['timestamp'], unit='ms')
+                                
+                                # Find where our pattern is within this context
+                                pattern_start_time = pattern_section['datetime'].min()
+                                pattern_end_time = pattern_section['datetime'].max()
+                                
+                                # Plot the full context with regular candle colors
+                                match_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=context_data['datetime'],
+                                        open=context_data['open'],
+                                        high=context_data['high'],
+                                        low=context_data['low'],
+                                        close=context_data['close'],
+                                        increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                        decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                        increasing_fillcolor=st.session_state.candle_style['increasing_color'],
+                                        decreasing_fillcolor=st.session_state.candle_style['decreasing_color'],
+                                        name="Context"
+                                    )
+                                )
+                                
+                                # Find the indices in context_data that match our pattern start/end
+                                pattern_in_context = context_data[
+                                    (context_data['datetime'] >= pattern_start_time) & 
+                                    (context_data['datetime'] <= pattern_end_time)
+                                ]
+                                
+                                if not pattern_in_context.empty:
+                                    # Overlay the pattern with blue candles
+                                    match_exp_fig.add_trace(
+                                        go.Candlestick(
+                                            x=pattern_in_context['datetime'],
+                                            open=pattern_in_context['open'],
+                                            high=pattern_in_context['high'],
+                                            low=pattern_in_context['low'],
+                                            close=pattern_in_context['close'],
+                                            increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                            decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                            name="Pattern Match"
+                                        )
+                                    )
+                                    
+                                    # Removed vertical line as requested
+                            else:
+                                # Fallback to using just the match data if we can't get context
+                                match_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=match_df_dates['datetime'],
+                                        open=match_df_dates['open'],
+                                        high=match_df_dates['high'],
+                                        low=match_df_dates['low'],
+                                        close=match_df_dates['close'],
+                                        increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                        decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                        increasing_fillcolor=st.session_state.candle_style['increasing_color'],
+                                        decreasing_fillcolor=st.session_state.candle_style['decreasing_color'],
+                                        name="Context"
+                                    )
+                                )
+                                
+                                # Overlay pattern section with blue candles
+                                match_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=pattern_section['datetime'],
+                                        open=pattern_section['open'],
+                                        high=pattern_section['high'],
+                                        low=pattern_section['low'],
+                                        close=pattern_section['close'],
+                                        increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                        decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                        name="Pattern Match"
+                                    )
+                                )
+                                
+                        except Exception as e:
+                            st.error(f"Error loading context data: {str(e)}")
+                            # Fallback to just showing what we have
+                            match_exp_fig.add_trace(
+                                go.Candlestick(
+                                    x=match_df_dates['datetime'],
+                                    open=match_df_dates['open'],
+                                    high=match_df_dates['high'],
+                                    low=match_df_dates['low'],
+                                    close=match_df_dates['close'],
+                                    increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                    decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                    name="Match Pattern"
+                                )
+                            )
+                            
+                            # Overlay the pattern part in blue
+                            match_exp_fig.add_trace(
+                                go.Candlestick(
+                                    x=pattern_section['datetime'],
+                                    open=pattern_section['open'],
+                                    high=pattern_section['high'],
+                                    low=pattern_section['low'],
+                                    close=pattern_section['close'],
+                                    increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                    decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                    name="Pattern Match"
+                                )
+                            )
+                        
+                        # Configure the match chart to match main chart style exactly
+                        match_exp_fig.update_layout(
+                            height=690,  # Same as main chart
+                            xaxis_rangeslider_visible=False,
+                            plot_bgcolor=st.session_state.candle_style['background_color'],
+                            paper_bgcolor=st.session_state.candle_style['background_color'],
+                            font=dict(color='white', family="ProtoMono-Light, monospace"),
+                            margin=dict(l=25, r=25, t=15, b=15),
+                            hovermode='x unified',
+                            showlegend=False,
+                            hoverlabel=dict(
+                                bgcolor=st.session_state.candle_style['background_color'],
+                                font_size=14,
+                                font_family="ProtoMono-Light, monospace"
+                            ),
+                            shapes=[],
+                            annotations=[],
+                            xaxis_showticklabels=True,
+                            yaxis_showticklabels=True,
+                            xaxis_showspikes=False,
+                            yaxis_showspikes=False,
+                            modebar_remove=["lasso", "select"],
+                            title=None  # Remove the title
+                        )
+                        
+                        # Update x-axes with grid lines and flat time labels
+                        match_exp_fig.update_xaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            showticklabels=True,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            tickangle=0,  # Flat time labels
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickformat="%m-%d<br>%H:%M",  # Two-line format with month-day on top, hours below
+                            tickmode="auto",
+                            nticks=15,  # Control the number of ticks
+                            ticks="outside",  # Place ticks outside the chart
+                            ticklen=8,  # Longer tick marks
+                            minor_showgrid=True,  # Show minor grid lines too
+                            minor_gridcolor=st.session_state.candle_style['grid_color'],
+                            tickcolor="#999999"
+                        )
+                        
+                        # Use dynamic tick spacing for y-axis based on selected coin
+                        if st.session_state.selected_coin == "ETH":
+                            # ETH uses smaller price increments
+                            tick_spacing = 50    # Grid line every 50 price level for ETH
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 250], value=",.0f"),   # Show every 50 tick label
+                                dict(dtickrange=[250, None], value=",.0f")    # Show only every 250 tick label
+                            ]
+                        else:
+                            # BTC uses larger price increments
+                            tick_spacing = 1000  # Grid line every 1k price level for BTC
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 5000], value=",.0f"),  # Show every 1k tick label
+                                dict(dtickrange=[5000, None], value=",.0f")   # Show only every 5k tick label
+                            ]
+                            
+                        match_exp_fig.update_yaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            dtick=tick_spacing,
+                            tickmode="linear",
+                            tick0=0,
+                            tickformat=",.0f",
+                            tickformatstops=tickformatstops_config,
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickcolor="#999999",
+                            hoverformat=",.0f",
+                            showline=False,
+                            mirror=False
+                        )
+                        
+                        # Display match chart
+                        st.plotly_chart(match_exp_fig, use_container_width=True, config={'displayModeBar': False})
+                        
+                        # Create reference pattern chart
+                        st.write("**Reference Pattern in Full Context**")
+                        source_exp_fig = go.Figure()
+                        
+                        # We need to get the main chart data which contains the reference pattern
+                        if df is not None and not df.empty:
+                            # This is the main dataframe shown in the candlestick chart
+                            # Get the reference pattern part using the selected range
+                            start_idx = st.session_state.selected_range['start_idx']
+                            end_idx = st.session_state.selected_range['end_idx']
+                            
+                            if start_idx is not None and end_idx is not None and start_idx < len(df) and end_idx < len(df):
+                                # Plot full dataframe with regular colors
+                                source_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=df['datetime'],
+                                        open=df['open'],
+                                        high=df['high'],
+                                        low=df['low'],
+                                        close=df['close'],
+                                        increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                        decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                        increasing_fillcolor=st.session_state.candle_style['increasing_color'],
+                                        decreasing_fillcolor=st.session_state.candle_style['decreasing_color'],
+                                        name="Context"
+                                    )
+                                )
+                                
+                                # Overlay the selected pattern with blue colors
+                                source_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=df.iloc[start_idx:end_idx+1]['datetime'],
+                                        open=df.iloc[start_idx:end_idx+1]['open'],
+                                        high=df.iloc[start_idx:end_idx+1]['high'],
+                                        low=df.iloc[start_idx:end_idx+1]['low'],
+                                        close=df.iloc[start_idx:end_idx+1]['close'],
+                                        increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                        decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                        name="Reference Pattern"
+                                    )
+                                )
+                                
+                                # Removed vertical line as requested
+                            else:
+                                # Fallback to source pattern from match
+                                # Convert source pattern to DataFrame if it's not already
+                                if isinstance(source_pattern, pd.DataFrame):
+                                    source_df = source_pattern.copy()
+                                else:
+                                    source_df = pd.DataFrame(source_pattern)
+                                
+                                # Create datetime values for plotting
+                                source_df['datetime'] = [datetime.fromtimestamp(ts/1000) for ts in source_df['timestamp']]
+                                
+                                # Add source pattern as blue candles
+                                source_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=source_df['datetime'],
+                                        open=source_df['open'],
+                                        high=source_df['high'],
+                                        low=source_df['low'],
+                                        close=source_df['close'],
+                                        increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                        decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                        name="Reference Pattern"
+                                    )
+                                )
+                        else:
+                            # Fallback to source pattern from match
+                            # Convert source pattern to DataFrame if it's not already
+                            if isinstance(source_pattern, pd.DataFrame):
+                                source_df = source_pattern.copy()
+                            else:
+                                source_df = pd.DataFrame(source_pattern)
+                            
+                            # Create datetime values for plotting
+                            source_df['datetime'] = [datetime.fromtimestamp(ts/1000) for ts in source_df['timestamp']]
+                            
+                            # Add source pattern as blue candles
+                            source_exp_fig.add_trace(
+                                go.Candlestick(
+                                    x=source_df['datetime'],
+                                    open=source_df['open'],
+                                    high=source_df['high'],
+                                    low=source_df['low'],
+                                    close=source_df['close'],
+                                    increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                    decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                    name="Reference Pattern"
+                                )
+                            )
+                        
+                        # Configure the reference chart to match main chart style exactly
+                        source_exp_fig.update_layout(
+                            height=690,  # Same as main chart
+                            xaxis_rangeslider_visible=False,
+                            plot_bgcolor=st.session_state.candle_style['background_color'],
+                            paper_bgcolor=st.session_state.candle_style['background_color'],
+                            font=dict(color='white', family="ProtoMono-Light, monospace"),
+                            margin=dict(l=25, r=25, t=15, b=15),
+                            hovermode='x unified',
+                            showlegend=False,
+                            hoverlabel=dict(
+                                bgcolor=st.session_state.candle_style['background_color'],
+                                font_size=14,
+                                font_family="ProtoMono-Light, monospace"
+                            ),
+                            shapes=[],
+                            annotations=[],
+                            xaxis_showticklabels=True,
+                            yaxis_showticklabels=True,
+                            xaxis_showspikes=False,
+                            yaxis_showspikes=False,
+                            modebar_remove=["lasso", "select"],
+                            title=None  # Remove the title
+                        )
+                        
+                        # Update x-axes with grid lines and flat time labels
+                        source_exp_fig.update_xaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            showticklabels=True,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            tickangle=0,  # Flat time labels
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickformat="%m-%d<br>%H:%M",  # Two-line format with month-day on top, hours below
+                            tickmode="auto",
+                            nticks=15,  # Control the number of ticks
+                            ticks="outside",  # Place ticks outside the chart
+                            ticklen=8,  # Longer tick marks
+                            minor_showgrid=True,  # Show minor grid lines too
+                            minor_gridcolor=st.session_state.candle_style['grid_color'],
+                            tickcolor="#999999"
+                        )
+                        
+                        # Use dynamic tick spacing for y-axis based on selected coin
+                        if st.session_state.selected_coin == "ETH":
+                            # ETH uses smaller price increments
+                            tick_spacing = 50    # Grid line every 50 price level for ETH
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 250], value=",.0f"),   # Show every 50 tick label
+                                dict(dtickrange=[250, None], value=",.0f")    # Show only every 250 tick label
+                            ]
+                        else:
+                            # BTC uses larger price increments
+                            tick_spacing = 1000  # Grid line every 1k price level for BTC
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 5000], value=",.0f"),  # Show every 1k tick label
+                                dict(dtickrange=[5000, None], value=",.0f")   # Show only every 5k tick label
+                            ]
+                            
+                        source_exp_fig.update_yaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            dtick=tick_spacing,
+                            tickmode="linear",
+                            tick0=0,
+                            tickformat=",.0f",
+                            tickformatstops=tickformatstops_config,
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickcolor="#999999",
+                            hoverformat=",.0f",
+                            showline=False,
+                            mirror=False
+                        )
+                        
+                        # Display reference chart
+                        st.plotly_chart(source_exp_fig, use_container_width=True, config={'displayModeBar': False})
+                        
+                        # Add a close button
+                        if st.button("Close Expanded View", key=f"close_expand_{i}", use_container_width=True):
+                            st.session_state[f"expand_{i}"] = False
+                            st.rerun()
+                        
+                        # Close the container div
+                        st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.info("No matching patterns found.")
+            
+# Clean up old modal variables if present
+if 'show_modal' in st.session_state:
+    del st.session_state['show_modal']
+if 'modal_match_id' in st.session_state:
+    del st.session_state['modal_match_id']
+if 'modal_match_date' in st.session_state:
+    del st.session_state['modal_match_date']
+if 'modal_match_df' in st.session_state:
+    del st.session_state['modal_match_df']
+if 'modal_distance' in st.session_state:
+    del st.session_state['modal_distance']
+if 'modal_pattern_indices' in st.session_state:
+    del st.session_state['modal_pattern_indices']
+if 'modal_median_result' in st.session_state:
+    del st.session_state['modal_median_result']
