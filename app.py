@@ -3346,8 +3346,8 @@ if st.session_state.search_results:
                             mirror=False
                         )
                         
-                        # Display match chart
-                        st.plotly_chart(match_exp_fig, use_container_width=True, config={'displayModeBar': False})
+                        # Display match chart with a unique key
+                        st.plotly_chart(match_exp_fig, use_container_width=True, config={'displayModeBar': False}, key=f"match_exp_chart_{i}")
                         
                         # Create reference pattern chart
                         st.write("**Reference Pattern in Full Context**")
@@ -3520,8 +3520,8 @@ if st.session_state.search_results:
                             mirror=False
                         )
                         
-                        # Display reference chart
-                        st.plotly_chart(source_exp_fig, use_container_width=True, config={'displayModeBar': False})
+                        # Display reference chart with a unique key
+                        st.plotly_chart(source_exp_fig, use_container_width=True, config={'displayModeBar': False}, key=f"source_exp_chart_{i}")
                         
                         # Add a close button
                         if st.button("Close Expanded View", key=f"close_expand_{i}", use_container_width=True):
