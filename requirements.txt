@@ -5,3 +5,4 @@ plotly>=5.13.0
 streamlit>=1.24.0
 aiohttp>=3.8.5
 scikit-learn>=1.2.2
+matplotlib>=3.7.0
