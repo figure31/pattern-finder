@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union, Tuple
 import numpy as np
+import pytz
 
 class BaseDataProvider:
     """
@@ -43,7 +44,7 @@ class BinanceDataProvider(BaseDataProvider):
     """
     
     def __init__(self):
-        self.base_url = "https://api.binance.us/api/v3"
+        self.base_url = "https://api.binance.com/api/v3"
         self._max_retries = 3
         self._request_delay = 0.1  # 100ms between requests
         
@@ -171,37 +172,47 @@ class BinanceDataProvider(BaseDataProvider):
             chunk_points.append(end_ms - (interval_ms * chunk_size))
             
         # Prepare async tasks to fetch each chunk
-        async with aiohttp.ClientSession() as session:
-            tasks = []
-            
-            for i, chunk_start in enumerate(chunk_points):
-                chunk_end = min(chunk_start + (interval_ms * chunk_size), end_ms)
+        try:
+            # Use a longer timeout for cloud deployment
+            timeout = aiohttp.ClientTimeout(total=30)  # 30 second timeout
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                tasks = []
                 
-                # Prepare the parameters for this chunk
-                params = {
-                    "symbol": symbol,
-                    "interval": interval,
-                    "startTime": chunk_start,
-                    "endTime": chunk_end,
-                    "limit": chunk_size
-                }
-                
-                # Create task for this chunk
-                task = self._fetch_chunk(session, url, params, f"Chunk {i+1}/{len(chunk_points)}")
-                tasks.append(task)
-                
-            # Run all tasks concurrently with a small delay between each to avoid rate limits
-            results = []
-            for i, task in enumerate(tasks):
-                # Add a small delay between requests to avoid rate limits
-                if i > 0:
-                    await asyncio.sleep(self._request_delay)
+                for i, chunk_start in enumerate(chunk_points):
+                    chunk_end = min(chunk_start + (interval_ms * chunk_size), end_ms)
                     
-                chunk_result = await task
-                if chunk_result:
-                    results.append(chunk_result)
+                    # Prepare the parameters for this chunk
+                    params = {
+                        "symbol": symbol,
+                        "interval": interval,
+                        "startTime": chunk_start,
+                        "endTime": chunk_end,
+                        "limit": chunk_size
+                    }
                     
-            return results
+                    # Create task for this chunk
+                    task = self._fetch_chunk(session, url, params, f"Chunk {i+1}/{len(chunk_points)}")
+                    tasks.append(task)
+                    
+                # Run all tasks concurrently with a small delay between each to avoid rate limits
+                results = []
+                for i, task in enumerate(tasks):
+                    # Add a small delay between requests to avoid rate limits
+                    if i > 0:
+                        await asyncio.sleep(self._request_delay)
+                    
+                    try:    
+                        chunk_result = await task
+                        if chunk_result:
+                            results.append(chunk_result)
+                    except Exception as e:
+                        print(f"Task {i} failed with error: {str(e)}")
+                        
+                return results
+        except Exception as e:
+            print(f"Fatal error in fetch_data_in_chunks: {str(e)}")
+            # In case of catastrophic failure, return empty results
+            return []
             
     async def _fetch_chunk(
         self, 
@@ -227,26 +238,55 @@ class BinanceDataProvider(BaseDataProvider):
             try:
                 async with session.get(url, params=params) as response:
                     if response.status != 200:
-                        error_text = await response.text()
-                        print(f"Error fetching {chunk_id}: {error_text}")
+                        try:
+                            error_text = await response.text()
+                            print(f"Error fetching {chunk_id}: {response.status} - {error_text}")
+                        except:
+                            print(f"Error fetching {chunk_id}: Status {response.status}, could not read response text")
                         
                         # If we hit a rate limit, wait and try again
                         if response.status == 429:
                             retry_after = int(response.headers.get('Retry-After', 1))
+                            print(f"Rate limited, retrying after {retry_after} seconds")
                             await asyncio.sleep(retry_after)
+                            continue
+                        elif response.status in [500, 502, 503, 504]:
+                            # Server error, wait longer
+                            wait_time = 2 ** attempt  # Exponential backoff
+                            print(f"Server error, retrying after {wait_time} seconds")
+                            await asyncio.sleep(wait_time)
                             continue
                             
                         return None
-                        
-                    klines = await response.json()
                     
-                    if not klines:
-                        print(f"No data returned for {chunk_id}")
+                    try:    
+                        klines = await response.json()
+                    except Exception as e:
+                        print(f"Failed to parse JSON response for {chunk_id}: {str(e)}")
+                        # Try to get the raw text
+                        try:
+                            text = await response.text()
+                            print(f"Raw response: {text[:200]}...")  # First 200 chars
+                        except:
+                            print("Could not read response text")
+                        
+                        # Wait and retry
+                        await asyncio.sleep(1)
+                        continue
+                    
+                    if not klines or not isinstance(klines, list):
+                        print(f"No valid data returned for {chunk_id}")
                         return None
                         
                     print(f"Successfully fetched {len(klines)} candles for {chunk_id}")
                     return klines
                     
+            except aiohttp.ClientConnectorError as e:
+                print(f"Connection error for {chunk_id} (attempt {attempt+1}/{self._max_retries}): {str(e)}")
+                await asyncio.sleep(2)  # Longer wait for connection issues
+            except asyncio.TimeoutError:
+                print(f"Timeout error for {chunk_id} (attempt {attempt+1}/{self._max_retries})")
+                await asyncio.sleep(2)  # Longer wait for timeouts
             except Exception as e:
                 print(f"Exception during {chunk_id} fetch (attempt {attempt+1}/{self._max_retries}): {str(e)}")
                 await asyncio.sleep(1)  # Wait before retry

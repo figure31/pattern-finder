@@ -34,7 +34,25 @@ with open(font_path, 'rb') as font_file:
 # Load custom font and apply clean, modern CSS with chart spacing adjustments
 st.markdown(f"""
 <style>
-    /* Custom Font Loading */
+    /* ===== VARIABLE DEFINITIONS ===== */
+    :root {{
+        --font-family: 'ProtoMono-Light', monospace;
+        --text-color: #cccccc;
+        --header-color: #dddddd;
+        --bg-color: #1e1e1e;
+        --button-bg: #2c2c2c;
+        --button-border: #444444;
+        --button-hover-bg: #3a3a3a;
+        --button-hover-border: #555555;
+        --grid-color: #333333;
+        --label-color: #999999;
+        --highlight-color: #4287f5;
+        --highlight-bg: rgba(66, 135, 245, 0.2);
+        --highlight-selected: rgba(66, 135, 245, 0.3);
+        --dropdown-bg: #222222;
+    }}
+
+    /* ===== FONT DEFINITION ===== */
     @font-face {{
         font-family: 'ProtoMono-Light';
         src: url('data:font/otf;base64,{font_base64}') format('opentype');
@@ -42,77 +60,111 @@ st.markdown(f"""
         font-style: normal;
     }}
     
-    /* Global font settings - use ProtoMono-Light everywhere */
+    /* ===== GLOBAL SETTINGS ===== */
     * {{
-        font-family: 'ProtoMono-Light', monospace !important;
+        font-family: var(--font-family) !important;
     }}
     
-    /* Consistent font size and pale grey text color for better readability */
     body, p, div, span, label, select, input, .element-container {{
         font-size: 1rem !important;
-        color: #cccccc !important;
+        color: var(--text-color) !important;
     }}
     
-    /* Header styles */
-    h1 {{font-size: 1rem !important; color: #dddddd !important;}}
-    h2 {{font-size: 1rem !important; color: #dddddd !important;}}
-    h3 {{font-size: 1rem !important; color: #dddddd !important;}}
-    
-    /* Button styling - lighter buttons than background */
-    .stButton button {{
-        width: 100%;
-        color: #333333 !important;
-        background-color: #2c2c2c !important;
-        border-color: #444444 !important;
+    /* ===== LAYOUT CORE ===== */
+    /* Hide unnecessary UI elements */
+    #MainMenu, footer, header {{
+        display: none;
     }}
     
-    /* Button hover state */
-    .stButton button:hover {{
-        background-color: #3a3a3a !important;
-        border-color: #555555 !important;
-    }}
-    
-    /* Container adjustments with minimal margins and padding */
+    /* Container core structure */
     .main .block-container {{
-        padding: 0.2rem !important; /* Extremely reduced padding */
-        padding-top: 0 !important; /* Remove top padding completely */
-        padding-bottom: 20px !important; /* Reduced bottom padding */
+        padding: 0.2rem !important;
+        padding-top: 0 !important;
+        padding-bottom: 40px !important;
         max-width: 100% !important;
         margin: 0 auto !important;
     }}
     
-    /* Force main container to start at the very top */
     .main {{
         padding-top: 0 !important;
         margin-top: 0 !important;
     }}
     
-    /* Eliminate padding from app container */
     .appview-container {{
         padding-top: 0 !important;
     }}
     
-    #MainMenu {{display: none;}} footer {{display: none;}} header {{display: none;}}
-    .stDateInput {{width: 100%;}}
-    /* Aggressively reduce spacing for headers */
-    h1 {{margin-top: 0.2rem !important; margin-bottom: 0.1rem !important; font-size: 1rem !important;}}
-    h2, h3 {{margin-top: 0.3rem !important; margin-bottom: 0.1rem !important;}}
+    /* Background color consistency */
+    body, .stPlotlyChart, .js-plotly-plot, .plot-container, .element-container, .block-container, .main {{
+        background-color: var(--bg-color) !important;
+    }}
     
-    /* Aggressively reduce spacing for Streamlit elements */
-    .stSelectbox, .stMultiselect {{margin-bottom: 0.3rem !important; margin-top: 0 !important;}}
-    div[data-testid="stVerticalBlock"] > div {{padding-top: 0 !important; padding-bottom: 0 !important; margin-top: 0 !important; margin-bottom: 0 !important;}}
-    .element-container {{margin-top: 0 !important; padding-top: 0 !important; margin-bottom: 0.2rem !important;}}
+    body {{
+        padding-right: 15px !important;
+    }}
     
-    /* Target specific spacing between controls and title */
+    /* ===== TYPOGRAPHY ===== */
+    /* Header styles */
+    h1 {{
+        font-size: 1rem !important; 
+        color: var(--header-color) !important;
+        margin-top: 0.2rem !important; 
+        margin-bottom: 0.1rem !important;
+    }}
+    
+    h2, h3 {{
+        font-size: 1rem !important; 
+        color: var(--header-color) !important;
+        margin-top: 0.3rem !important; 
+        margin-bottom: 0.1rem !important;
+    }}
+    
+    /* Text elements */
+    p, div.markdown-text-container {{
+        margin-bottom: 8px !important;
+        margin-top: 8px !important;
+        padding-left: 5px !important;
+    }}
+    
+    /* ===== STREAMLIT ELEMENT SPACING ===== */
+    /* Element containers - consolidated all element-container styles */
+    .element-container {{
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        margin-bottom: 5px !important;
+        padding-bottom: 0 !important;
+    }}
+    
+    .stSelectbox, .stMultiselect {{
+        margin-bottom: 0.2rem !important; 
+        margin-top: 0 !important;
+    }}
+    
+    div[data-testid="stVerticalBlock"] > div {{
+        padding-top: 0 !important; 
+        padding-bottom: 0 !important; 
+        margin-top: 0 !important; 
+        margin-bottom: 0 !important;
+    }}
+    
     div[data-testid="stHorizontalBlock"] {{
         margin-top: 0 !important;
         padding-top: 0 !important;
         margin-bottom: 0 !important;
         padding-bottom: 0 !important;
     }}
-    .st-emotion-cache-1wmy9hl {{overflow-x: hidden !important;}}
     
-    /* Custom tooltip styling */
+    .st-emotion-cache-1wmy9hl {{
+        overflow-x: hidden !important;
+    }}
+    
+    /* ===== FORM ELEMENTS ===== */
+    /* Date inputs */
+    .stDateInput {{
+        width: 100%;
+    }}
+    
+    /* Tooltip styling */
     div[data-testid="stTooltipIcon"] span {{
         background-color: #262730;
         color: white;
@@ -120,142 +172,32 @@ st.markdown(f"""
         border-radius: 0.2rem;
     }}
     
-    /* Target chart containers to reduce vertical spacing */
-    .stPlotlyChart {{
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
+    /* ===== BUTTONS & SELECTORS ===== */
+    /* Button styling - consolidated */
+    .stButton button {{
+        width: 100%;
+        color: #333333 !important;
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
     }}
     
-    /* Target the actual Plotly graphs */
-    .js-plotly-plot, .plot-container {{
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
+    .stButton button:hover {{
+        background-color: var(--button-hover-bg) !important;
+        border-color: var(--button-hover-border) !important;
     }}
     
-    /* Drastically reduce whitespace */
-    .element-container {{
-        margin-bottom: 5px !important; /* Reduced from 10px */
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-    }}
-    
-    /* Eliminate colored debug backgrounds and match chart background */
-    body, .stPlotlyChart, .js-plotly-plot, .plot-container, .element-container, .block-container, .main {{
-        background-color: #1e1e1e !important; /* Match the chart background color */
-    }}
-    
-    /* Add spacing around charts with reduced side margins */
-    .stPlotlyChart {{
-        padding: 5px !important;
-        padding-bottom: 20px !important; /* Extra padding at bottom for x-axis labels */
-        padding-right: 8px !important; /* Reduced right padding by 50% */
-        margin-bottom: 15px !important;
-        margin-top: 10px !important;
-        margin-right: 5px !important; /* Reduced right margin by 50% */
-        border: none; /* Remove border entirely */
-        overflow: visible !important; /* Allow content to overflow for axis labels */
-        box-sizing: content-box !important; /* Ensure proper size calculation */
-        max-width: 100% !important; /* Reduced adjustment by 50% */
-    }}
-    
-    /* Make axis labels and ticks consistent */
-    .xtick text, .ytick text {{
-        color: #999999 !important;
-    }}
-    
-    /* Ensure grid lines are visible */
-    .gridlayer path {{
-        stroke: #333333 !important;
-    }}
-    
-    /* Chart spacing and visibility */
-    .stPlotlyChart {{
-        border: none; /* Remove border entirely */
-        padding: 8px;
-        padding-bottom: 20px;
-        margin-bottom: 15px;
-        overflow: visible !important;
-    }}
-    
-    /* Make sure plotly objects appear */
-    .plot-container, .plotly, .js-plotly-plot, .svg-container {{
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }}
-    
-    /* Ensure canvas is visible */
-    canvas, .main-svg {{
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }}
-    
-    /* Remove unwanted subplot titles */
-    .gtitle, .g-gtitle {{
-        display: none !important;
-    }}
-    
-    /* Target text elements between charts */
-    p, div.markdown-text-container {{
-        margin-bottom: 8px !important;
-        margin-top: 8px !important;
-        padding-left: 5px !important;
-    }}
-    
-    /* Add space at the bottom of the page */
-    .main .block-container {{
-        padding-bottom: 40px !important;
-    }}
-    
-    /* Provide a bit more spacing on the right for the scrollbar */
-    body {{
-        padding-right: 15px !important;
-    }}
-    
-    /* Slider styling - leaving default values */
-    
-    /* Highlight select options on hover with light blue */
-    div[data-baseweb="select-option"]:hover {{
-        background-color: rgba(66, 135, 245, 0.2) !important;
-    }}
-    
-    /* Style select boxes to match button styling */
+    /* Select box styling - consolidated */ 
     .stSelectbox [data-baseweb="select"] div, 
     .stMultiselect [data-baseweb="select"] div {{
-        background-color: #2c2c2c !important;
-        border-color: #444444 !important;
-        color: #cccccc !important;
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
+        color: var(--text-color) !important;
     }}
     
     .stSelectbox [data-baseweb="select"] div:hover,
     .stMultiselect [data-baseweb="select"] div:hover {{
-        background-color: #3a3a3a !important;
-        border-color: #555555 !important;
-    }}
-    
-    /* Style dropdown menus to match buttons - more aggressive styling */
-    div[data-baseweb="popover"] div[data-baseweb="menu"],
-    div[data-baseweb="popover"] ul,
-    div[data-baseweb="popover"] {{
-        background-color: #222222 !important;
-        border-color: #444444 !important;
-        color: #cccccc !important;
-    }}
-    
-    div[data-baseweb="select-option"],
-    div[data-baseweb="menu"] div,
-    div[data-baseweb="menu"] li,
-    div[role="option"],
-    li[role="option"] {{
-        background-color: #222222 !important;
-        color: #cccccc !important;
-    }}
-    
-    div[data-baseweb="select-option"]:hover,
-    div[role="option"]:hover,
-    li[role="option"]:hover {{
-        background-color: #3a3a3a !important;
+        background-color: var(--button-hover-bg) !important;
+        border-color: var(--button-hover-border) !important;
     }}
     
     /* Force select dropdown color */
@@ -263,29 +205,48 @@ st.markdown(f"""
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] svg,
     div[data-baseweb="select"] * {{
-        color: #cccccc !important;
-        fill: #cccccc !important;
+        color: var(--text-color) !important;
+        fill: var(--text-color) !important;
     }}
     
-    /* Make dropdown menu items selected state more visible */
+    /* Dropdown menu styling */
+    div[data-baseweb="popover"] div[data-baseweb="menu"],
+    div[data-baseweb="popover"] ul,
+    div[data-baseweb="popover"],
+    div[data-baseweb="select-option"],
+    div[data-baseweb="menu"] div,
+    div[data-baseweb="menu"] li,
+    div[role="option"],
+    li[role="option"] {{
+        background-color: var(--dropdown-bg) !important;
+        border-color: var(--button-border) !important;
+        color: var(--text-color) !important;
+    }}
+    
+    /* Dropdown hover and selection states */
+    div[data-baseweb="select-option"]:hover,
+    div[role="option"]:hover,
+    li[role="option"]:hover {{
+        background-color: var(--button-hover-bg) !important;
+    }}
+    
     div[aria-selected="true"],
     li[aria-selected="true"] {{
-        background-color: rgba(66, 135, 245, 0.3) !important;
+        background-color: var(--highlight-selected) !important;
     }}
     
-    /* Make date selector buttons more compact but preserve font size */
+    /* Date selector sizes */
     div[data-testid="stSelectbox"] {{
         max-width: 85%;
         width: 85%;
     }}
     
-    /* Specific styling for date selector boxes in search period */
     #start_year, #start_month, #start_day, #end_year, #end_month, #end_day {{
-        max-width: 75%;  /* Reduce width by 15% */
+        max-width: 75%;
         width: 75%;
     }}
     
-    /* Ensure font size remains consistent with the rest of the site */
+    /* Selector font sizes */
     div[data-testid="stSelectbox"] span,
     div[data-testid="stSelectbox"] div,
     div[data-baseweb="select"] span, 
@@ -293,17 +254,55 @@ st.markdown(f"""
         font-size: 1rem !important;
     }}
     
-    /* Force the selection boxes to be smaller */
+    /* Selection box sizes */
     div[role="listbox"] {{
         max-width: 90% !important;
     }}
     
-    /* Reduce width of date selectors container */
     div.stSelectbox {{
         max-width: 90% !important;
     }}
     
-    /* Modal overlay styles */
+    /* ===== CHART STYLING ===== */
+    /* Consolidated PlotlyChart styling */
+    .stPlotlyChart {{
+        border: none;
+        padding: 8px;
+        padding-bottom: 20px !important;
+        padding-right: 8px !important;
+        margin-bottom: 15px !important;
+        margin-top: 10px !important;
+        margin-right: 5px !important;
+        overflow: visible !important;
+        box-sizing: content-box !important;
+        max-width: 100% !important;
+    }}
+    
+    /* Chart elements visibility */
+    .plot-container, .plotly, .js-plotly-plot, .svg-container,
+    canvas, .main-svg {{
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }}
+    
+    /* Chart label styling */
+    .xtick text, .ytick text {{
+        color: var(--label-color) !important;
+    }}
+    
+    .gridlayer path {{
+        stroke: var(--grid-color) !important;
+    }}
+    
+    /* Remove unwanted subplot titles */
+    .gtitle, .g-gtitle {{
+        display: none !important;
+    }}
+    
+    /* ===== MODAL STYLES ===== */
     .modal-overlay {{
         position: fixed;
         top: 0;
@@ -316,8 +315,9 @@ st.markdown(f"""
         align-items: center;
         justify-content: center;
     }}
+    
     .modal-container {{
-        background-color: #1E1E1E;
+        background-color: var(--bg-color);
         border-radius: 5px;
         width: 90%;
         max-width: 1200px;
@@ -325,6 +325,7 @@ st.markdown(f"""
         padding: 20px;
         overflow-y: auto;
     }}
+    
     .close-button {{
         float: right;
         color: white;
@@ -332,20 +333,23 @@ st.markdown(f"""
         font-size: 20px;
         margin-bottom: 15px;
     }}
+    
     .match-header {{
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 10px;
     }}
+    
     .match-title {{
         margin: 0;
         flex-grow: 1;
     }}
+    
     .expand-button {{
         float: right;
         margin-left: 15px;
-        color: #4287f5;
+        color: var(--highlight-color);
         cursor: pointer;
     }}
 </style>
@@ -1233,6 +1237,7 @@ def plot_match_results(source_pattern, matches, following_points=20, style=None,
 st.markdown(
     """
     <style>
+    /* ===== TITLE LAYOUT ===== */
     /* Custom styles for title row */
     .title-with-selector {
         display: flex;
@@ -1270,6 +1275,7 @@ with col_title:
 st.markdown(
     """
     <style>
+    /* ===== LAYOUT ADJUSTMENTS ===== */
     /* Target the horizontal block with controls to pull it up */
     section[data-testid="stSidebar"] + div > div:nth-child(4) {
         margin-top: -15px !important;
@@ -1283,6 +1289,7 @@ st.markdown(
 st.markdown(
     """
     <style>
+    /* ===== COLUMN ALIGNMENT ===== */
     /* Make all columns consistent in width behavior */
     div[data-testid="column"] {
         padding: 0 !important;
@@ -1296,13 +1303,7 @@ st.markdown(
         max-width: 100% !important;
     }
     
-    /* Override the previous CSS that was targeting specific selectboxes */
-    div[data-testid="stSelectbox"] {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-    
-    /* Remove any existing margin/width constraints set earlier */
+    /* Ensure selectbox width is consistent */
     div.stSelectbox {
         max-width: 100% !important;
         width: 100% !important;
@@ -1769,6 +1770,7 @@ if st.session_state.btc_data is not None:
     st.markdown(
         """
         <style>
+        /* ===== SLIDER STYLING ===== */
         /* Make the slider less tall */
         div[data-testid="stSlider"] {
             padding-top: 0 !important;
@@ -1838,14 +1840,15 @@ if st.session_state.btc_data is not None:
     st.markdown(
         """
         <style>
-        /* Style the button and number input containers to match them exactly */
+        /* ===== NUMBER INPUTS & ADDITIONAL FORM ELEMENTS ===== */
+        /* Style number inputs to match buttons and select boxes */
         .stButton button,
         .stNumberInput [data-baseweb="input"],
         .stNumberInput [data-baseweb="base-input"],
         .stSelectbox [data-baseweb="select"] {
-            background-color: #2c2c2c !important;
-            color: #cccccc !important;
-            border-color: #444444 !important;
+            background-color: var(--button-bg) !important;
+            color: var(--text-color) !important;
+            border-color: var(--button-border) !important;
             border-width: 1px !important;
             border-style: solid !important;
             border-radius: 4px !important;
@@ -1856,24 +1859,24 @@ if st.session_state.btc_data is not None:
         .stNumberInput:hover [data-baseweb="input"],
         .stNumberInput:hover [data-baseweb="base-input"],
         .stSelectbox:hover [data-baseweb="select"] {
-            background-color: #3a3a3a !important;
-            border-color: #555555 !important;
+            background-color: var(--button-hover-bg) !important;
+            border-color: var(--button-hover-border) !important;
         }
         
-        /* Ensure the text color matches exactly */
+        /* Ensure text colors match */
         .stButton button span,
         .stNumberInput input,
         .stSelectbox [data-baseweb="select"] span {
-            color: #cccccc !important;
+            color: var(--text-color) !important;
         }
         
         /* Make labels match */
         .stNumberInput label,
         .stSelectbox label {
-            color: #cccccc !important;
+            color: var(--text-color) !important;
         }
         
-        /* Completely remove spinner buttons */
+        /* Remove spinner buttons from number inputs */
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { 
             -webkit-appearance: none !important;
@@ -1881,15 +1884,15 @@ if st.session_state.btc_data is not None:
             opacity: 0 !important;
         }
         
-        /* Make sure the input itself is properly styled */
+        /* Number input base styling */
         .stNumberInput input {
-            background-color: #2c2c2c !important;
+            background-color: var(--button-bg) !important;
             border: none !important;
             outline: none !important;
             box-shadow: none !important;
         }
         
-        /* Remove any artifacts or extras */
+        /* Remove artifacts */
         .stNumberInput [data-baseweb="input"]::after,
         .stNumberInput [data-baseweb="input"]::before,
         .stNumberInput [data-baseweb="base-input"]::after,
@@ -1898,12 +1901,13 @@ if st.session_state.btc_data is not None:
             content: none !important;
         }
         
-        /* Hide any visual markers we don't want */
+        /* Hide visual markers */
         [data-testid="stMarkdownContainer"] small {
             display: none !important;
         }
         
-        /* Fix for temporary slider appearing near analysis method selector */
+        /* ===== SLIDER FIXES ===== */
+        /* Fix for temporary slider artifacts */
         div.element-container:has(div[data-baseweb="slider"]) ~ div.element-container:has(div[data-baseweb="slider"]) {
             display: none !important;
             visibility: hidden !important;
@@ -1913,7 +1917,7 @@ if st.session_state.btc_data is not None:
             pointer-events: none !important;
         }
         
-        /* Ensure sliders adjacent to selectboxes don't create temporary UI elements */
+        /* Hide sliders adjacent to selectboxes */
         div.element-container:has(div[data-baseweb="select"]) ~ div.element-container:has(div[data-baseweb="slider"]) {
             opacity: 0 !important;
             height: 0 !important;
@@ -1974,21 +1978,104 @@ if st.session_state.btc_data is not None:
                 # Need to render something hidden to maintain layout
                 st.markdown('<div style="display:none;">placeholder</div>', unsafe_allow_html=True)
     
-    # Add spacing before guidance text - increase it to match what's below
-    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
-    
-    # Add guidance text that spans the full width
+    # Create an info button that expands to show the text
     if analysis_method == "Matrix Profile":
-        st.markdown("""
+        info_text = """
         **Matrix Profile - Find Visually Similar Patterns:** Matrix Profile finds visually similar patterns using a shape-based matching algorithm. It's ideal for finding historical occasions where price action behaved similarly to what you're seeing now or at a specific point in time. You can use it to confirm or refute specific chart formations you've identified. Setting tip: A multiplier filter setting of 1.2-1.5 provides strict matching for closer pattern similarity, while higher values up to 2.0 offers more flexible matching to capture broader pattern families. Score matches below 2 are ideal, above 4 the system is less reliable. For pattern selection, 15-50 candles generally works well, though up to 75 can still provide meaningful results. Beyond 100 candles, matches become increasingly rare and less precise. We recommend setting 50-100 maximum matches initially to explore similar historical periods. Important: Always examine the actual match charts rather than relying solely on the higher/lower statistics. Our median price comparison uses a fixed timeframe equal to 2 times the length of your selected pattern, which may not align with your specific trading horizon. The patterns themselves often reveal nuances and potential outcomes that statistics alone cannot capture. For trading guidance, if 70%+ of historical patterns moved in one direction, this may suggest a bias worth exploring further with your own analysis.
-        """)
+        """
     else:  # feature_extraction
-        st.markdown("""
+        info_text = """
         **Feature Extraction - Find Statistically Similar Patterns:** Feature Extraction uses Principal Component Analysis (PCA) to find statistically similar patterns based on underlying market conditions. This method excels at identifying market conditions and regime changes through statistical relationships—analyzing volatility clustering, momentum divergences, trend strength transitions, and complex intermarket correlations. It's more statistical than visual. The scatter plot shows pattern groupings where the blue dot represents your selected pattern, teal dots show matches, and proximity indicates similarity level. Patterns are matched using statistical indicators like volatility, trend strength, and candlestick characteristics rather than visual shape. Lower distance scores (under 2.0) indicate stronger statistical similarity, with scores below 1.0 representing particularly strong matches. Unlike visual matching, these scores represent distances in high-dimensional feature space (typically 15-25 dimensions reduced through PCA)—patterns with similar volatility signatures, trend momentum, and price action characteristics cluster together regardless of visual appearance. For component selection, start with 2 components (default). If explained variance is below 65%, try increasing to 3-4 components to capture more statistical detail, though higher values may include noise. Start with 50-100 maximum matches to identify the primary pattern clusters. For deeper regime analysis or system development, increase to 200+ matches to better understand the full feature landscape. Feature extraction works best with 20-40 candle patterns that capture sufficient market behavior to extract meaningful statistical properties. Important: Always examine the actual match charts rather than relying solely on the higher/lower statistics. Our median price comparison uses a fixed timeframe equal to 2 times the length of your selected pattern, which may not align with your specific trading horizon. The patterns themselves often reveal nuances and potential outcomes that statistics alone cannot capture. While these patterns may not look the same, they often lead to similar market behavior, making this method more sophisticated than the more straightforward matrix profile analysis.
-        """)
-        
-    # Add spacing after guidance text - keep the same amount
-    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+        """
+    
+    # Add custom CSS to fix vertical spacing between analysis method and info button
+    st.markdown("""
+    <style>
+    /* ===== EXPANDER STYLING ===== */
+    /* Adjust spacing around selectbox elements */
+    div.element-container:has([data-baseweb="select"]) {
+        margin-bottom: 0.2rem !important;
+    }
+    
+    /* Target the container of the expander to match other element spacing */
+    div.element-container:has(div[data-testid="stExpander"]) {
+        margin-top: 0.0rem !important;
+        margin-bottom: 0.2rem !important;
+        padding: 0 !important;
+    }
+    
+    /* Style the expander to match other buttons EXACTLY */
+    .streamlit-expanderHeader {
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
+        border-radius: 4px !important;
+        color: var(--text-color) !important;
+        font-family: var(--font-family) !important;
+        /* Match button padding exactly */
+        padding: 0.375rem 0.75rem !important;
+        line-height: 1 !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background-color: var(--button-hover-bg) !important;
+        border-color: var(--button-hover-border) !important;
+    }
+    
+    /* Fix the text inside the button */
+    div[data-testid="stExpander"] div[role="button"] p {
+        font-size: 1rem !important;
+        font-weight: normal !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: var(--text-color) !important;
+    }
+    
+    /* Container styling */
+    div[data-testid="stExpander"] {
+        border: none !important;
+        background-color: transparent !important;
+    }
+    
+    /* Content area styling */
+    div[data-testid="stExpander"] details {
+        background-color: var(--bg-color) !important;
+    }
+    
+    div[data-testid="stExpander"] details summary {
+        margin-bottom: 0 !important;
+        list-style: none !important;
+        padding: 0 !important;
+    }
+    
+    div[data-testid="stExpander"] details summary ~ div {
+        padding: 1em !important;
+        background-color: var(--bg-color) !important;
+    }
+    
+    /* Adjust spacing around the expander */
+    div[data-testid="stExpander"] .stExpander {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Only control top margin of expander container, allow bottom margin */
+    div.element-container:has(div[data-testid="stExpander"]) {
+        margin-top: 0 !important;
+        padding: 0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Use the full width for the info button
+    # Use Streamlit's built-in expander with simpler label and matching styling
+    # Use Streamlit's built-in expander with styling that matches other buttons
+    with st.expander("Info", expanded=False):
+        st.markdown(info_text, unsafe_allow_html=True)
+    
+    # No spacer needed
+    # st.markdown("<div style='height: 5px'></div>", unsafe_allow_html=True)
     
     with pattern_search_cols[0]:
         # Create a simple slider with a proper label
