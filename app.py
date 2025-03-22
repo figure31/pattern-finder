@@ -2043,6 +2043,11 @@ if st.session_state.btc_data is not None:
         st.session_state.max_distance_pct = int(multiplier * 100)
         st.session_state.search_started = True
         
+        # Reset all expanded views when starting a new search
+        for key in list(st.session_state.keys()):
+            if key.startswith('expand_state_'):
+                st.session_state[key] = False
+        
         # Force a rerun to trigger the search code below
         st.rerun()
     
@@ -2867,13 +2872,13 @@ if st.session_state.search_results:
                 # Add Expand View button on the right
                 with match_header_cols[1]:
                     # Initialize expanded state for this match if not already in session state
-                    if f"expand_{i}" not in st.session_state:
-                        st.session_state[f"expand_{i}"] = False
+                    if f"expand_state_{i}" not in st.session_state:
+                        st.session_state[f"expand_state_{i}"] = False
                     
                     # Button to toggle expanded view
                     if st.button("Expand View", key=f"expand_button_{i}"):
                         # Toggle the expanded state for this match
-                        st.session_state[f"expand_{i}"] = not st.session_state[f"expand_{i}"]
+                        st.session_state[f"expand_state_{i}"] = not st.session_state[f"expand_state_{i}"]
                 
                 # Create individual figure for this match
                 match_fig = go.Figure()
@@ -3104,7 +3109,7 @@ if st.session_state.search_results:
                 st.plotly_chart(match_fig, use_container_width=True, config={'displayModeBar': False})
                 
                 # If expanded view is toggled for this match, display expanded view right after this chart
-                if st.session_state.get(f"expand_{i}", False):
+                if st.session_state.get(f"expand_state_{i}", False):
                     with st.container():
                         # Add a small visual separator
                         st.markdown("<div style='border-left: 4px solid #4287f5; padding-left: 10px; margin: 10px 0;'>", unsafe_allow_html=True)
@@ -3129,8 +3134,8 @@ if st.session_state.search_results:
                         asyncio.set_event_loop(loop)
                         provider = get_data_provider()
                         
-                        # Calculate pattern midpoint to center it
-                        pattern_section = match_df_dates.iloc[match_start:match_end+1]
+                        # Define the pattern section - use first pattern_length candles to match normal view
+                        pattern_section = match_df_dates.iloc[:pattern_length]
                         pattern_midpoint = pattern_section['datetime'].mean()
                         
                         # Calculate time range for context - use the same range as the main chart
@@ -3184,11 +3189,11 @@ if st.session_state.search_results:
                                     )
                                 )
                                 
-                                # Find the indices in context_data that match our pattern start/end
-                                pattern_in_context = context_data[
-                                    (context_data['datetime'] >= pattern_start_time) & 
-                                    (context_data['datetime'] <= pattern_end_time)
-                                ]
+                                # Get exact timestamps from original match data for precise matching
+                                pattern_timestamps = match_df_dates.iloc[:pattern_length]['timestamp'].tolist()
+                                
+                                # Find the indices in context_data that exactly match our pattern timestamps
+                                pattern_in_context = context_data[context_data['timestamp'].isin(pattern_timestamps)]
                                 
                                 if not pattern_in_context.empty:
                                     # Overlay the pattern with blue candles
@@ -3253,14 +3258,15 @@ if st.session_state.search_results:
                                 )
                             )
                             
-                            # Overlay the pattern part in blue
+                            # Overlay the pattern part in blue - using the first pattern_length rows
+                            pattern_part = match_df_dates.iloc[:pattern_length]
                             match_exp_fig.add_trace(
                                 go.Candlestick(
-                                    x=pattern_section['datetime'],
-                                    open=pattern_section['open'],
-                                    high=pattern_section['high'],
-                                    low=pattern_section['low'],
-                                    close=pattern_section['close'],
+                                    x=pattern_part['datetime'],
+                                    open=pattern_part['open'],
+                                    high=pattern_part['high'],
+                                    low=pattern_part['low'],
+                                    close=pattern_part['close'],
                                     increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
                                     decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
                                     name="Pattern Match"
@@ -3525,7 +3531,7 @@ if st.session_state.search_results:
                         
                         # Add a close button
                         if st.button("Close Expanded View", key=f"close_expand_{i}", use_container_width=True):
-                            st.session_state[f"expand_{i}"] = False
+                            st.session_state[f"expand_state_{i}"] = False
                             st.rerun()
                         
                         # Close the container div
