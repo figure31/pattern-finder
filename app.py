@@ -271,7 +271,7 @@ st.markdown(f"""
         padding-bottom: 20px !important;
         padding-right: 8px !important;
         margin-bottom: 15px !important;
-        margin-top: 10px !important;
+        margin-top: 5px !important; /* Reduced from 10px to 5px to tighten spacing */
         margin-right: 5px !important;
         overflow: visible !important;
         box-sizing: content-box !important;
@@ -2287,7 +2287,12 @@ if st.session_state.search_results:
                 
                 # Display the feature space visualization using full width
                 st.subheader("Pattern Families in Feature Space")
-                st.plotly_chart(feature_space_fig, use_container_width=True)
+                # Use consistent chart configuration
+                chart_config = {
+                    'scrollZoom': True,
+                    'displaylogo': False,
+                }
+                st.plotly_chart(feature_space_fig, use_container_width=True, config=chart_config)
                 
                 # Code for displaying feature importance in second column - commented out but kept for future use
                 # if feature_importance_fig is not None:
@@ -2634,11 +2639,674 @@ if st.session_state.search_results:
                         )
                     
                         # Display the histogram
-                        st.plotly_chart(hist_fig, use_container_width=True, config={'displayModeBar': False})
+                        # Use consistent chart configuration
+                        chart_config = {
+                            'scrollZoom': True,
+                            'displaylogo': False,
+                        }
+                        st.plotly_chart(hist_fig, use_container_width=True, config=chart_config)
             else:
                 st.header(f"Found {total_matches} Similar Patterns")
             
             # Price direction stats now displayed earlier in the UI flow
+            
+            # Function to create prediction visualization chart that shows match outcomes
+            def create_prediction_chart(source_pattern, matches, style=None, max_matches=30, main_df=None, start_idx=None, end_idx=None):
+                """
+                Create a chart showing potential future outcomes based on all matches.
+                
+                Args:
+                    source_pattern: Reference pattern data
+                    matches: List of match results with pattern_data
+                    style: Chart style dictionary
+                    max_matches: Maximum number of matches to include in visualization
+                    main_df: Optional main dataframe to extract actual future data if pattern is historical
+                    start_idx: Optional start index of the pattern in the main dataframe
+                    end_idx: Optional end index of the pattern in the main dataframe
+                    
+                Returns:
+                    Plotly figure object
+                """
+                if style is None:
+                    style = st.session_state.candle_style
+                
+                if not matches or len(matches) == 0:
+                    return None
+                
+                # Create a figure for the prediction chart
+                pred_fig = go.Figure()
+                
+                # Get the source pattern data
+                source_df = pd.DataFrame(source_pattern)
+                source_times = [datetime.fromtimestamp(ts/1000) for ts in source_df["timestamp"]]
+                pattern_length = len(source_df)
+                
+                # Add source pattern as candlesticks (past data)
+                pred_fig.add_trace(
+                    go.Candlestick(
+                        x=source_times,
+                        open=source_df['open'],
+                        high=source_df['high'],
+                        low=source_df['low'],
+                        close=source_df['close'],
+                        name=None,
+                        increasing=dict(
+                            line=dict(color='rgba(66, 135, 245, 0.7)'),  # Light blue
+                            fillcolor='rgba(66, 135, 245, 0.7)'          # Light blue with transparency
+                        ),
+                        decreasing=dict(
+                            line=dict(color='rgba(26, 86, 196, 0.7)'),   # Darker blue
+                            fillcolor='rgba(26, 86, 196, 0.7)'           # Darker blue with transparency
+                        ),
+                        hoverinfo="x+y"
+                    )
+                )
+                
+                # Get the reference price (last close of source pattern)
+                reference_price = source_df['close'].iloc[-1]
+                reference_time = source_times[-1]
+                
+                # Create invisible anchor point at reference price/time
+                pred_fig.add_trace(
+                    go.Scatter(
+                        x=[reference_time],
+                        y=[reference_price],
+                        mode='markers',
+                        marker=dict(size=10, color='rgba(255, 255, 255, 0.5)'),
+                        name='Reference Point',
+                        hoverinfo='y',
+                        showlegend=False
+                    )
+                )
+                
+                # Calculate the average timeframe between candles in the pattern
+                # This will help us space out future projections
+                time_diffs = []
+                for i in range(1, len(source_times)):
+                    time_diffs.append((source_times[i] - source_times[i-1]).total_seconds())
+                avg_time_diff = np.mean(time_diffs) if time_diffs else 3600  # Default to 1 hour if can't calculate
+                
+                # Calculate how far into the future we should display (2x pattern length) 
+                # Define this early for consistent use throughout the function
+                target_future_points = pattern_length * 2
+
+                # Create a list to hold normalized future paths
+                match_futures = []
+                min_pct_changes = []  # Lowest point per match
+                max_pct_changes = []  # Highest point per match
+                final_pct_changes = []  # Final point per match
+                
+                # Limit the number of matches to show
+                num_matches = min(len(matches), max_matches)
+                
+                # Process each match to extract future data and normalize
+                for i in range(num_matches):
+                    match = matches[i]
+                    match_data = pd.DataFrame(match["pattern_data"])
+                    
+                    # Skip if not enough data
+                    if len(match_data) <= pattern_length:
+                        continue
+                        
+                    # Get the future part (everything after pattern_length)
+                    future_data = match_data.iloc[pattern_length:]
+                    
+                    # Get the reference point (last candle of the pattern part)
+                    match_reference_price = match_data['close'].iloc[pattern_length-1]
+                    
+                    # Calculate percentage changes from reference point
+                    pct_changes = (future_data['close'] / match_reference_price - 1) * 100
+                    pct_changes_list = pct_changes.tolist()
+                    
+                    # Store the data
+                    match_futures.append({
+                        'pct_changes': pct_changes_list,
+                        'min_pct': pct_changes.min() if not pct_changes.empty else 0,
+                        'max_pct': pct_changes.max() if not pct_changes.empty else 0,
+                        'final_pct': pct_changes.iloc[-1] if not pct_changes.empty else 0,
+                        'distance': match['distance']  # Keep track of match quality
+                    })
+                    
+                    # Store extremes and final values for statistics
+                    if not pct_changes.empty:
+                        min_pct_changes.append(pct_changes.min())
+                        max_pct_changes.append(pct_changes.max())
+                        final_pct_changes.append(pct_changes.iloc[-1])
+                
+                # Calculate average timeframes for future projection
+                projection_times = []
+                # Use consistent max_future_points based on target_future_points
+                max_future_points = max(
+                    max([len(m['pct_changes']) for m in match_futures]) if match_futures else 0,
+                    target_future_points  # Ensure at least target_future_points
+                )
+                
+                for i in range(max_future_points):
+                    projection_times.append(reference_time + timedelta(seconds=avg_time_diff * (i+1)))
+                
+                # Add lines for each match outcome
+                for i, match_future in enumerate(match_futures):
+                    pct_changes = match_future['pct_changes']
+                    match_quality = match_future['distance']  # Lower distance = better match
+                    
+                    # Calculate opacity based on match quality (better matches = more opaque)
+                    # Normalize all distances between 0.2 and 0.7 opacity
+                    all_distances = [m['distance'] for m in match_futures]
+                    min_dist = min(all_distances)
+                    max_dist = max(all_distances)
+                    norm_range = max_dist - min_dist if max_dist > min_dist else 1
+                    opacity = 0.7 - 0.5 * ((match_quality - min_dist) / norm_range) if norm_range > 0 else 0.5
+                    opacity = max(0.2, min(0.7, opacity))  # Clamp between 0.2 and 0.7
+                    
+                    # Convert to numpy array for easier handling
+                    pct_array = np.array(pct_changes)
+                    
+                    # Calculate future prices based on percentage changes
+                    future_prices = [reference_price * (1 + pct/100) for pct in pct_array]
+                    
+                    # For consistent display, use exactly the target number of data points
+                    # If we have more than we need, truncate 
+                    # If we have fewer than we need, we'll only draw what we have
+                    data_points = min(len(pct_array), target_future_points)
+                    
+                    # Always use the consistent time grid for all elements (real data and projections)
+                    # Get up to the target number of projection times
+                    times_for_match = projection_times[:data_points]
+                    
+                    # Add line for this match with hover highlighting and varying appearance based on match quality
+                    # Create varied gray shades to help visually distinguish different lines
+                    # We'll use a more sophisticated approach to create visually distinct lines:
+                    # 1. Vary the base gray shade (70-115) to create different brightness 
+                    # 2. Add slight hue variations by making the channels slightly different
+                    base_gray = 70 + (i % 6) * 9  # Values from 70-115 for different shades
+                    
+                    # Add subtle color variation for even better distinction
+                    r_offset = (i % 3) * 5
+                    g_offset = ((i+1) % 3) * 5
+                    b_offset = ((i+2) % 3) * 5
+                    
+                    r = base_gray + r_offset
+                    g = base_gray + g_offset
+                    b = base_gray + b_offset
+                    
+                    # Add line for this match with varying opacity based on match quality
+                    pred_fig.add_trace(
+                        go.Scatter(
+                            x=[reference_time] + times_for_match,
+                            y=[reference_price] + future_prices[:data_points],
+                            mode='lines',
+                            line=dict(
+                                color=f'rgba({r}, {g}, {b}, {opacity})',
+                                width=1.5
+                            ),
+                            name=f"Match #{i+1}",
+                            showlegend=False,
+                            hoverinfo="y+text",
+                            hovertext=["Reference"] + [f"{pct:.2f}% change" for pct in pct_array[:data_points]]
+                        )
+                    )
+                    
+                    # We'll rely on the min, max, and final points below for hover information
+                    # instead of adding extra hover points here
+                    
+                    # Add markers for min, max, and final points
+                    # Need to be careful here as we're now limiting data_points based on target_future_points
+                    # Make sure we don't use indices beyond what we're actually displaying
+                    displayed_pct_array = pct_array[:data_points]
+                    displayed_future_prices = future_prices[:data_points]
+                    
+                    if len(displayed_pct_array) > 0:
+                        # Get indices of min and max points within the displayed part only
+                        min_idx = np.argmin(displayed_pct_array)
+                        max_idx = np.argmax(displayed_pct_array)
+                        
+                        # Min point (red)
+                        # Make sure min_idx is actually valid for times_for_match
+                        if min_idx < len(times_for_match):
+                            pred_fig.add_trace(
+                                go.Scatter(
+                                    x=[times_for_match[min_idx]],
+                                    y=[displayed_future_prices[min_idx]],
+                                    mode='markers',
+                                    marker=dict(
+                                        size=6,
+                                        color='rgba(239, 83, 80, {})'.format(opacity),
+                                        line=dict(
+                                            color='rgba(239, 83, 80, {})'.format(opacity),
+                                            width=1
+                                        )
+                                    ),
+                                    name=f"Min: {displayed_pct_array[min_idx]:.2f}%",
+                                    showlegend=False,
+                                    hoverinfo="text",
+                                    hovertext=[f"Match #{i+1} - Min: {displayed_pct_array[min_idx]:.2f}%"]
+                                )
+                            )
+                        
+                        # Max point (green)
+                        # Make sure max_idx is actually valid for times_for_match
+                        if max_idx < len(times_for_match):
+                            pred_fig.add_trace(
+                                go.Scatter(
+                                    x=[times_for_match[max_idx]],
+                                    y=[displayed_future_prices[max_idx]],
+                                    mode='markers',
+                                    marker=dict(
+                                        size=6,
+                                        color='rgba(38, 166, 154, {})'.format(opacity),
+                                        line=dict(
+                                            color='rgba(38, 166, 154, {})'.format(opacity),
+                                            width=1
+                                        )
+                                    ),
+                                    name=f"Max: {displayed_pct_array[max_idx]:.2f}%",
+                                    showlegend=False,
+                                    hoverinfo="text",
+                                    hovertext=[f"Match #{i+1} - Max: {displayed_pct_array[max_idx]:.2f}%"]
+                                )
+                            )
+                        
+                        # Final point (blue) - only if we have at least one point in the displayed array
+                        if len(times_for_match) > 0 and len(displayed_pct_array) > 0:
+                            final_pct = displayed_pct_array[-1]
+                            pred_fig.add_trace(
+                                go.Scatter(
+                                    x=[times_for_match[-1]],
+                                    y=[displayed_future_prices[-1]],
+                                    mode='markers',
+                                    marker=dict(
+                                        size=6,
+                                        color='rgba(66, 135, 245, {})'.format(opacity),
+                                        line=dict(
+                                            color='rgba(66, 135, 245, {})'.format(opacity),
+                                            width=1
+                                        )
+                                    ),
+                                    name=f"Final: {final_pct:.2f}%",
+                                    showlegend=False,
+                                    hoverinfo="text",
+                                    hovertext=[f"Match #{i+1} - Final: {final_pct:.2f}%"]
+                                )
+                            )
+                
+                # Calculate the "ghost path" - median of all matches at each point
+                if match_futures:
+                    # Collect all percentage changes
+                    all_pct_series = []
+                    
+                    # Determine the maximum data points (limited to 2x pattern length for consistency)
+                    max_len = min(max([len(m['pct_changes']) for m in match_futures]), target_future_points)
+                    
+                    # Pad all series to the same length
+                    for match_future in match_futures:
+                        # Trim to max_len if needed (for consistency with other elements)
+                        pct_series = pd.Series(match_future['pct_changes'][:max_len])
+                        # Pad with NaN if needed
+                        padded = pct_series.reindex(range(max_len), fill_value=np.nan)
+                        all_pct_series.append(padded)
+                    
+                    # Stack into a DataFrame
+                    pct_df = pd.concat(all_pct_series, axis=1)
+                    
+                    # Calculate median path (ignoring NaN values)
+                    median_pcts = pct_df.median(axis=1, skipna=True)
+                    
+                    # Convert back to prices
+                    median_prices = [reference_price * (1 + pct/100) for pct in median_pcts]
+                    
+                    # Make sure we have enough projection_times for the median
+                    while len(projection_times) < len(median_prices):
+                        next_time = reference_time + timedelta(seconds=avg_time_diff * (len(projection_times) + 1))
+                        projection_times.append(next_time)
+                    
+                    # Add the median path with reduced thickness (2 instead of 3)
+                    pred_fig.add_trace(
+                        go.Scatter(
+                            x=[reference_time] + projection_times[:len(median_prices)],
+                            y=[reference_price] + median_prices,
+                            mode='lines',
+                            line=dict(
+                                color='rgba(255, 255, 255, 1.0)',  # White
+                                width=2,  # Reduced thickness from 3 to 2
+                                dash='solid'
+                            ),
+                            name="Median Path",
+                            hoverinfo="y+text",
+                            hovertext=["Reference"] + [f"{pct:.2f}% change" for pct in median_pcts.values]
+                        )
+                    )
+                
+                # NEW: Add actual price data if this is a historical pattern
+                # Check if we have the main dataframe and indexes, and if there's data after the pattern
+                has_actual_data = False
+                actual_pct_changes = []
+                actual_future_data = None
+                
+                if main_df is not None and start_idx is not None and end_idx is not None:
+                    # Check if the pattern is not at the end of the data
+                    if end_idx < len(main_df) - 1:
+                        # Determine how many future points to show based on the pattern length
+                        pattern_length = end_idx - start_idx + 1  # Number of candles in the pattern
+                        
+                        # For future prediction, we want to show 2x the pattern length
+                        # This matches how we display historical patterns
+                        target_future_length = pattern_length * 2
+                        
+                        # Calculate how many future points we can actually show
+                        available_future_length = len(main_df) - end_idx - 1
+                        future_length = min(target_future_length, available_future_length)
+                        
+                        if future_length > 0:
+                            # Extract the actual future data
+                            future_start_idx = end_idx + 1
+                            future_end_idx = future_start_idx + future_length - 1
+                            future_end_idx = min(future_end_idx, len(main_df) - 1)  # Ensure we don't go past the data
+                            
+                            actual_future_data = main_df.iloc[future_start_idx:future_end_idx+1]
+                            
+                            # Calculate percentage changes from reference point (last candle of pattern)
+                            # for statistics calculation only
+                            actual_reference_price = main_df.iloc[end_idx]['close']
+                            actual_pct_changes = [(price / actual_reference_price - 1) * 100 for price in actual_future_data['close']]
+                            
+                            # Get key statistics about what actually happened after the pattern
+                            actual_final_price = actual_future_data['close'].iloc[-1] if not actual_future_data.empty else 0
+                            actual_final_pct_change = ((actual_final_price / actual_reference_price) - 1) * 100
+                            
+                            has_actual_data = True
+                
+                # Add the actual candles if available
+                if has_actual_data and actual_future_data is not None and not actual_future_data.empty:
+                    # First, let's add a reference point - a thin dotted line at the level of the last pattern close price
+                    # This makes it easier to visually compare where the price started versus where it ended up
+                    pattern_end_price = main_df.iloc[end_idx]['close']  # The actual closing price at end of pattern
+                    
+                    # For the visualization scaling, we need to make the ranges compatible
+                    # Calculate the normalized prices relative to our reference price for consistency in the chart
+                    reference_ratio = reference_price / pattern_end_price
+                    
+                    # Normalize all OHLC data relative to our reference price for chart display
+                    # This is necessary for proper visualization - we're not changing the data, just scaling it 
+                    # to appear correctly on the same chart with the pattern matches
+                    normalized_open = [price * reference_ratio for price in actual_future_data['open']]
+                    normalized_high = [price * reference_ratio for price in actual_future_data['high']]
+                    normalized_low = [price * reference_ratio for price in actual_future_data['low']]
+                    normalized_close = [price * reference_ratio for price in actual_future_data['close']]
+                    
+                    # Create a consistent time grid that ensures the actual data terminates at the same point
+                    # as the match projections. We use the projection_times that were calculated earlier
+                    # for the match futures.
+                    
+                    # Calculate exactly how many projection points we need (2x pattern length)
+                    # (target_future_points is already defined above)
+                    
+                    # Ensure we have enough projection times for 2x pattern length
+                    while len(projection_times) < target_future_points:
+                        next_time = reference_time + timedelta(seconds=avg_time_diff * (len(projection_times) + 1))
+                        projection_times.append(next_time)
+                    
+                    # Extract just the number of projection times we need
+                    aligned_times = projection_times[:target_future_points]
+                    
+                    # If we have more actual data points than projection points, truncate
+                    # If we have fewer, we'll use only the times we have data for
+                    data_points = min(len(actual_future_data), len(aligned_times))
+                    
+                    # Add reference horizontal line at the pattern end price level (normalized)
+                    # Use the last projection time to ensure the line extends to the same end point as projections
+                    pred_fig.add_shape(
+                        type="line",
+                        x0=reference_time,  # Start at reference point
+                        x1=aligned_times[-1],  # End at last projection time point, ensuring same end point as projections
+                        y0=reference_price,  # At the reference price level
+                        y1=reference_price,
+                        line=dict(
+                            color="rgba(150, 150, 150, 0.7)",
+                            width=1.5,
+                            dash="dot"
+                        )
+                    )
+                    
+                    # Add actual future data as candlesticks with standard styling
+                    # Only use the data points we have, but align them to our projection time grid
+                    pred_fig.add_trace(
+                        go.Candlestick(
+                            x=aligned_times[:data_points],  # Use aligned times instead of actual datetime
+                            open=normalized_open[:data_points],
+                            high=normalized_high[:data_points],
+                            low=normalized_low[:data_points],
+                            close=normalized_close[:data_points],
+                            name="Actual Outcome",
+                            increasing=dict(
+                                line=dict(color=style['increasing_line_color']),
+                                fillcolor=style['increasing_color']
+                            ),
+                            decreasing=dict(
+                                line=dict(color=style['decreasing_line_color']),
+                                fillcolor=style['decreasing_color']
+                            ),
+                            hoverinfo="x+y"
+                        )
+                    )
+                    
+                    # For stats, use the actual percentage change from the final candle
+                    final_actual_pct = actual_final_pct_change
+                
+                # Calculate y-axis range to include all data points plus padding
+                all_prices = [reference_price]
+                for match_future in match_futures:
+                    min_price = reference_price * (1 + match_future['min_pct']/100)
+                    max_price = reference_price * (1 + match_future['max_pct']/100)
+                    all_prices.extend([min_price, max_price])
+                
+                # Include actual OHLC prices in the range calculation if available
+                if has_actual_data and actual_future_data is not None and not actual_future_data.empty:
+                    reference_ratio = reference_price / main_df.iloc[end_idx]['close']
+                    normalized_highs = [price * reference_ratio for price in actual_future_data['high']]
+                    normalized_lows = [price * reference_ratio for price in actual_future_data['low']]
+                    all_prices.extend(normalized_highs)
+                    all_prices.extend(normalized_lows)
+                
+                y_min = min(all_prices) * 0.99  # 1% padding below
+                y_max = max(all_prices) * 1.01  # 1% padding above
+                
+                # Define explicit x-axis range to ensure everything is properly aligned and bounded
+                x_min = reference_time
+                
+                # Determine pattern length for calculating target future range
+                pattern_length = 0
+                if start_idx is not None and end_idx is not None:
+                    pattern_length = end_idx - start_idx + 1
+                
+                # Calculate how far into the future we should display (2x pattern length)
+                target_future_points = pattern_length * 2
+                
+                # For the max range, use a consistent target future length (2x pattern length)
+                # This ensures the actual and predicted data are displayed with the same scale
+                if avg_time_diff > 0:
+                    # Set the view to exactly 2x pattern length into the future
+                    # This is the target end point for ALL visualization elements (match projections, median, real data)
+                    x_max = reference_time + timedelta(seconds=avg_time_diff * target_future_points)
+                
+                # Add 5% padding on the x-axis
+                time_range = x_max - x_min
+                padding = time_range * 0.05
+                x_min_padded = x_min - padding
+                x_max_padded = x_max + padding
+                
+                # Configure layout with enhanced hover effects
+                pred_fig.update_layout(
+                    title=None,  # Remove chart title since we have styled title above
+                    height=690,  # Match height with expanded view charts
+                    xaxis_rangeslider_visible=False,
+                    plot_bgcolor=style['background_color'],
+                    paper_bgcolor=style['background_color'],
+                    font=dict(color='white', family="ProtoMono-Light, monospace"),
+                    margin=dict(l=25, r=25, t=0, b=15),  # Removed top margin completely to match match charts
+                    showlegend=False,
+                    hoverlabel=dict(
+                        bgcolor=style['background_color'],
+                        font_size=14,
+                        font_family="ProtoMono-Light, monospace"
+                    ),
+                    shapes=[],
+                    annotations=[],
+                    xaxis_showticklabels=True,
+                    yaxis_showticklabels=True,
+                    modebar_remove=["lasso", "select"],
+                    # Use more focused hover that only displays when directly over points
+                    hovermode='closest',
+                    hoverdistance=10  # Only show hover info when very close to points
+                    # Removed explicit range setting to allow Plotly's autorange to work properly
+                )
+                
+                # This section is redundant - we already defined these variables earlier
+                # Ensure projection_times has enough points to reach x_max
+                while len(projection_times) < target_future_points:
+                    next_time = reference_time + timedelta(seconds=avg_time_diff * (len(projection_times) + 1))
+                    projection_times.append(next_time)
+                    
+                # Add invisible "anchor points" at the extremes to help Plotly's autorange show the complete chart
+                # Use 5% padding on left but only 1% on right as requested
+                padding_left = time_range * 0.05  # 5% padding on left
+                padding_right = time_range * 0.01  # 1% padding on right
+                x_min_wide = x_min - padding_left
+                x_max_wide = x_max + padding_right
+                
+                # Add invisible anchor point at the far left
+                pred_fig.add_trace(
+                    go.Scatter(
+                        x=[x_min_wide],
+                        y=[reference_price],  # Use reference price level
+                        mode='markers',
+                        marker=dict(size=0, opacity=0),  # Completely invisible
+                        showlegend=False,
+                        hoverinfo='none'
+                    )
+                )
+                
+                # Add invisible anchor point at the far right
+                pred_fig.add_trace(
+                    go.Scatter(
+                        x=[x_max_wide],
+                        y=[reference_price],  # Use reference price level
+                        mode='markers',
+                        marker=dict(size=0, opacity=0),  # Completely invisible
+                        showlegend=False,
+                        hoverinfo='none'
+                    )
+                )
+                
+                # Update x-axes with grid lines and flat time labels, without hover spikes
+                # Allow Plotly to autorange the x-axis based on all data points and anchor points
+                pred_fig.update_xaxes(
+                    showgrid=True,
+                    gridcolor=style['grid_color'],
+                    gridwidth=0.5,
+                    zeroline=False,
+                    showticklabels=True,
+                    linecolor=style['grid_color'],
+                    tickangle=0,  # Flat time labels
+                    tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                    tickformat="%m-%d<br>%H:%M",  # Two-line format with month-day on top, hours below
+                    nticks=15,
+                    ticks="outside",  # Place ticks outside the chart
+                    ticklen=8,  # Longer tick marks
+                    minor_showgrid=True,  # Show minor grid lines too
+                    minor_gridcolor=style['grid_color'],
+                    tickcolor="#999999",
+                    # Remove hover spikes
+                    showspikes=False
+                )
+                
+                # Set different tick spacing based on selected coin for y-axis
+                if st.session_state.selected_coin == "ETH":
+                    # ETH uses smaller price increments
+                    tick_spacing = 50    # Grid line every 50 price level for ETH
+                    tickformatstops_config = [
+                        dict(dtickrange=[None, 250], value=",.0f"),   # Show every 50 tick label
+                        dict(dtickrange=[250, None], value=",.0f")    # Show only every 250 tick label
+                    ]
+                else:
+                    # BTC uses larger price increments
+                    tick_spacing = 1000  # Grid line every 1k price level for BTC
+                    tickformatstops_config = [
+                        dict(dtickrange=[None, 5000], value=",.0f"),  # Show every 1k tick label
+                        dict(dtickrange=[5000, None], value=",.0f")   # Show only every 5k tick label
+                    ]
+                    
+                # Update y-axis with appropriate range and grid, without hover spikes
+                pred_fig.update_yaxes(
+                    range=[y_min, y_max],
+                    showgrid=True,
+                    gridcolor=style['grid_color'],
+                    gridwidth=0.5,
+                    zeroline=False,
+                    linecolor=style['grid_color'],
+                    dtick=tick_spacing,
+                    tickmode="linear",
+                    tick0=0,
+                    tickformat=",.0f",
+                    tickformatstops=tickformatstops_config,
+                    tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                    tickcolor="#999999",
+                    hoverformat=",.0f",
+                    showline=False,
+                    mirror=False,
+                    # Remove hover spikes
+                    showspikes=False
+                )
+                
+                # Update statistics - use median for all stats for consistency
+                stats = {
+                    'num_matches': len(match_futures),
+                    'median_min': np.median(min_pct_changes) if min_pct_changes else 0,
+                    'median_max': np.median(max_pct_changes) if max_pct_changes else 0,
+                    'median_final': np.median(final_pct_changes) if final_pct_changes else 0,
+                    'has_actual_data': has_actual_data,
+                    'actual_final_pct': final_actual_pct if has_actual_data else None
+                }
+                
+                return pred_fig, stats
+            
+            # Create and display prediction chart before showing individual matches
+            if filtered_matches and len(filtered_matches) > 0:
+                # Create the prediction visualization
+                result = create_prediction_chart(
+                    source_pattern, 
+                    filtered_matches, 
+                    style=st.session_state.candle_style,
+                    max_matches=30,  # Limit to maintain performance
+                    main_df=df,  # Pass main dataframe to extract actual future data
+                    start_idx=start_idx,  # Pass start index for the pattern
+                    end_idx=end_idx  # Pass end index for the pattern
+                )
+                
+                # Unpack return value - contains figure and stats
+                pred_fig, stats = result
+                
+                # Display the chart with a consistent title style
+                if pred_fig is not None:
+                    # Let's use the same approach as the Match titles - no divs or custom CSS
+                    # This simpler approach will ensure spacing is identical to match titles
+                    # Add indication if actual data is shown
+                    title_text = f"**Prediction: Pattern Outcomes** (Based on {stats['num_matches']} matches - Median Min: {stats['median_min']:.2f}% | Median Max: {stats['median_max']:.2f}% | Median Final: {stats['median_final']:.2f}%)"
+                    
+                    # If we have actual data, add it to the title - keep it in the standard text color
+                    if stats.get('has_actual_data', False) and stats.get('actual_final_pct') is not None:
+                        title_text += f" | Actual Final: {stats['actual_final_pct']:.2f}%"
+                        
+                    st.markdown(title_text, unsafe_allow_html=True)
+                    
+                    # No JavaScript needed, using simple static visualization
+                    
+                    # Display chart without title (title is now in markdown)
+                    # Include the same config as the main chart to ensure consistent behavior
+                    chart_config = {
+                        'scrollZoom': True,
+                        'displaylogo': False,
+                    }
+                    st.plotly_chart(pred_fig, use_container_width=True, config=chart_config)
             
             # First display source pattern for reference - with some space
             st.markdown("<div style='height: 10px'></div>", unsafe_allow_html=True)
@@ -2785,7 +3453,12 @@ if st.session_state.search_results:
             # Display source pattern with title and force full container width
             st.write("**Source Pattern (Reference)**")
             # Pass explicit width of 100% to ensure chart uses all available space
-            st.plotly_chart(source_fig, use_container_width=True, config={'displayModeBar': False})
+            # Use consistent chart configuration
+            chart_config = {
+                'scrollZoom': True,
+                'displaylogo': False,
+            }
+            st.plotly_chart(source_fig, use_container_width=True, config=chart_config)
             
             # Add a small spacer before the charts
             st.markdown("<div style='height: 15px'></div>", unsafe_allow_html=True)
@@ -3193,7 +3866,12 @@ if st.session_state.search_results:
                 
                 # Display the match chart without controls and ensure full container width
                 # Pass explicit width of 100% to ensure chart uses all available space
-                st.plotly_chart(match_fig, use_container_width=True, config={'displayModeBar': False})
+                # Use consistent chart configuration
+                chart_config = {
+                    'scrollZoom': True,
+                    'displaylogo': False,
+                }
+                st.plotly_chart(match_fig, use_container_width=True, config=chart_config)
                 
                 # If expanded view is toggled for this match, display expanded view right after this chart
                 if st.session_state.get(f"expand_state_{i}", False):
@@ -3440,7 +4118,12 @@ if st.session_state.search_results:
                         )
                         
                         # Display match chart with a unique key
-                        st.plotly_chart(match_exp_fig, use_container_width=True, config={'displayModeBar': False}, key=f"match_exp_chart_{i}")
+                        # Use consistent chart configuration
+                        chart_config = {
+                            'scrollZoom': True,
+                            'displaylogo': False,
+                        }
+                        st.plotly_chart(match_exp_fig, use_container_width=True, config=chart_config, key=f"match_exp_chart_{i}")
                         
                         # Create reference pattern chart
                         st.write("**Reference Pattern in Full Context**")
@@ -3614,7 +4297,12 @@ if st.session_state.search_results:
                         )
                         
                         # Display reference chart with a unique key
-                        st.plotly_chart(source_exp_fig, use_container_width=True, config={'displayModeBar': False}, key=f"source_exp_chart_{i}")
+                        # Use consistent chart configuration
+                        chart_config = {
+                            'scrollZoom': True,
+                            'displaylogo': False,
+                        }
+                        st.plotly_chart(source_exp_fig, use_container_width=True, config=chart_config, key=f"source_exp_chart_{i}")
                         
                         # Add a close button
                         if st.button("Close Expanded View", key=f"close_expand_{i}", use_container_width=True):
