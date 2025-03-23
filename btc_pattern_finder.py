@@ -291,17 +291,21 @@ class BTCPatternFinder:
                         if interval == "1d":
                             threshold = 60 * 60 * 24 * 3  # 3 days
                         elif interval == "1h":
-                            threshold = 60 * 60 * 5       # 5 hours
+                            threshold = 60 * 60 * 8       # 8 hours (increased from 5)
                         elif interval == "4h":
-                            threshold = 60 * 60 * 10      # 10 hours
+                            threshold = 60 * 60 * 12      # 12 hours (increased from 10)
                         elif interval == "30m":
-                            threshold = 60 * 30 * 5       # 2.5 hours
+                            threshold = 60 * 30 * 12      # 6 hours (increased from 2.5 hours)
                         elif interval == "15m":
-                            threshold = 60 * 15 * 7       # ~2 hours
+                            threshold = 60 * 15 * 16      # 4 hours (increased from ~2 hours)
                         elif interval == "5m":
-                            threshold = 60 * 5 * 15       # ~1.25 hours
+                            threshold = 60 * 5 * 36       # 3 hours (increased from ~1.25 hours)
+                        elif interval == "3m":
+                            threshold = 60 * 3 * 60       # 3 hours
+                        elif interval == "1m":
+                            threshold = 60 * 1 * 180      # 3 hours
                         else:
-                            threshold = 60 * 60 * 2       # 2 hours default
+                            threshold = 60 * 60 * 3       # 3 hours default (increased from 2)
                             
                         if time_diff < threshold:
                             too_close_to_existing = True
@@ -604,17 +608,21 @@ class BTCPatternFinder:
                         if interval == "1d":
                             threshold = 60 * 60 * 24 * 3  # 3 days
                         elif interval == "1h":
-                            threshold = 60 * 60 * 5       # 5 hours
+                            threshold = 60 * 60 * 8       # 8 hours (increased from 5)
                         elif interval == "4h":
-                            threshold = 60 * 60 * 10      # 10 hours
+                            threshold = 60 * 60 * 12      # 12 hours (increased from 10)
                         elif interval == "30m":
-                            threshold = 60 * 30 * 5       # 2.5 hours
+                            threshold = 60 * 30 * 12      # 6 hours (increased from 2.5 hours)
                         elif interval == "15m":
-                            threshold = 60 * 15 * 7       # ~2 hours
+                            threshold = 60 * 15 * 16      # 4 hours (increased from ~2 hours)
                         elif interval == "5m":
-                            threshold = 60 * 5 * 15       # ~1.25 hours
+                            threshold = 60 * 5 * 36       # 3 hours (increased from ~1.25 hours)
+                        elif interval == "3m":
+                            threshold = 60 * 3 * 60       # 3 hours
+                        elif interval == "1m":
+                            threshold = 60 * 1 * 180      # 3 hours
                         else:
-                            threshold = 60 * 60 * 2       # 2 hours default
+                            threshold = 60 * 60 * 3       # 3 hours default (increased from 2)
                             
                         if time_diff < threshold:
                             too_close_to_existing = True
