@@ -2342,20 +2342,20 @@ if st.session_state.search_results:
                 
                 # Only analyze if we have enough data after the pattern
                 if len(match_data) > pattern_length:
-                    # Calculate median close price of the pattern part (before the blue line)
+                    # Calculate average close price of the pattern part (before the blue line)
                     pattern_close_prices = match_data.iloc[:pattern_length]['close']
-                    pattern_median_close = pattern_close_prices.median()
+                    pattern_avg_close = pattern_close_prices.mean()
                     
-                    # Calculate median close price of the future part (after the blue line)
+                    # Calculate average close price of the future part (after the blue line)
                     future_close_prices = match_data.iloc[pattern_length:]['close']
-                    future_median_close = future_close_prices.median()
+                    future_avg_close = future_close_prices.mean()
                     
-                    # Compare median values to see if price level went up or down after pattern
-                    if future_median_close > pattern_median_close:
+                    # Compare average values to see if price level went up or down after pattern
+                    if future_avg_close > pattern_avg_close:
                         higher_count += 1
-                    elif future_median_close < pattern_median_close:
+                    elif future_avg_close < pattern_avg_close:
                         lower_count += 1
-                    # Equal median prices not counted in either category
+                    # Equal average prices not counted in either category
             
             # Display statistics with the total count of matches and filtering info
             if temp_matches and filtered_matches:
@@ -2496,14 +2496,14 @@ if st.session_state.search_results:
                         
                         # Use colored metrics with time information
                         st.metric(
-                            label=f"Median Price Higher {time_label} After Pattern", 
+                            label=f"Average Price Higher {time_label} After Pattern", 
                             value=f"{higher_count} patterns", 
                             delta=f"{higher_pct:.1f}%",
                             delta_color="normal"
                         )
                         
                         st.metric(
-                            label=f"Median Price Lower {time_label} After Pattern", 
+                            label=f"Average Price Lower {time_label} After Pattern", 
                             value=f"{lower_count} patterns", 
                             delta=f"{lower_pct:.1f}%",
                             delta_color="inverse"  # Inverse makes down neutral/up green
@@ -2613,18 +2613,19 @@ if st.session_state.search_results:
                             paper_bgcolor=st.session_state.candle_style['background_color'],
                             font=dict(color="#999999", size=10),  # Lighter color for axis text
                             showlegend=False,  # Remove legend entirely
-                            # Enhance x-axis with proper range limits and more granular ticks
+                            # Enhance x-axis with proper range limits and adaptive ticks
                             xaxis=dict(
                                 range=[plot_min, plot_max],  # Set range to min/max with margins
                                 showgrid=True,
                                 gridcolor='#999999',  # Match grid color to text color
                                 gridwidth=0.5,      # Make grid lines slightly thicker
                                 zeroline=False,
-                                dtick=0.1,  # Moderate tick intervals (0.1 steps)
+                                # Remove fixed dtick to allow auto-adjustment based on data range
                                 tickformat=".2f",  # Show two decimal places for more precision
                                 title_font=dict(color="#999999"),  # Lighter color for axis title
                                 title="Score",      # Add explicit axis title
-                                nticks=15           # Fewer tick marks for better readability
+                                nticks=8,          # Limit number of ticks to prevent overlap
+                                automargin=True    # Ensure labels don't get cut off
                             ),
                             # Enhance y-axis with fixed range to prevent empty space
                             yaxis=dict(
@@ -3257,12 +3258,12 @@ if st.session_state.search_results:
                     showspikes=False
                 )
                 
-                # Update statistics - use median for all stats for consistency
+                # Update statistics - use average (mean) for all stats
                 stats = {
                     'num_matches': len(match_futures),
-                    'median_min': np.median(min_pct_changes) if min_pct_changes else 0,
-                    'median_max': np.median(max_pct_changes) if max_pct_changes else 0,
-                    'median_final': np.median(final_pct_changes) if final_pct_changes else 0,
+                    'avg_min': np.mean(min_pct_changes) if min_pct_changes else 0,
+                    'avg_max': np.mean(max_pct_changes) if max_pct_changes else 0,
+                    'avg_final': np.mean(final_pct_changes) if final_pct_changes else 0,
                     'has_actual_data': has_actual_data,
                     'actual_final_pct': final_actual_pct if has_actual_data else None
                 }
@@ -3276,7 +3277,7 @@ if st.session_state.search_results:
                     source_pattern, 
                     filtered_matches, 
                     style=st.session_state.candle_style,
-                    max_matches=30,  # Limit to maintain performance
+                    max_matches=len(filtered_matches),  # Use all filtered matches instead of hardcoded limit
                     main_df=df,  # Pass main dataframe to extract actual future data
                     start_idx=start_idx,  # Pass start index for the pattern
                     end_idx=end_idx  # Pass end index for the pattern
@@ -3290,7 +3291,7 @@ if st.session_state.search_results:
                     # Let's use the same approach as the Match titles - no divs or custom CSS
                     # This simpler approach will ensure spacing is identical to match titles
                     # Add indication if actual data is shown
-                    title_text = f"**Prediction: Pattern Outcomes** (Based on {stats['num_matches']} matches - Median Min: {stats['median_min']:.2f}% | Median Max: {stats['median_max']:.2f}% | Median Final: {stats['median_final']:.2f}%)"
+                    title_text = f"**Prediction: Pattern Outcomes** (Based on {stats['num_matches']} matches - Avg Min: {stats['avg_min']:.2f}% | Avg Max: {stats['avg_max']:.2f}% | Avg Final: {stats['avg_final']:.2f}%)"
                     
                     # If we have actual data, add it to the title - keep it in the standard text color
                     if stats.get('has_actual_data', False) and stats.get('actual_final_pct') is not None:
