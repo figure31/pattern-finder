@@ -39,10 +39,176 @@ class BTCPatternFinder:
         "1w": 1/7,      # ~0.14 points per day
     }
     
+    # Window sizes for market regime classification based on timeframe
+    regime_window_sizes = {
+        "1m": {"short_term": 120, "long_term": 720, "direction_change": 60},  # 2h, 12h, 1h
+        "3m": {"short_term": 80, "long_term": 480, "direction_change": 40},   # 4h, 24h, 2h
+        "5m": {"short_term": 72, "long_term": 288, "direction_change": 36},   # 6h, 24h, 3h
+        "15m": {"short_term": 32, "long_term": 192, "direction_change": 16},  # 8h, 48h, 4h
+        "30m": {"short_term": 16, "long_term": 96, "direction_change": 8},    # 8h, 48h, 4h
+        "1h": {"short_term": 12, "long_term": 72, "direction_change": 6},     # 12h, 3d, 6h
+        "2h": {"short_term": 12, "long_term": 72, "direction_change": 6},     # 24h, 6d, 12h
+        "4h": {"short_term": 12, "long_term": 72, "direction_change": 6},     # 48h, 12d, 24h
+        "6h": {"short_term": 8, "long_term": 56, "direction_change": 4},      # 48h, 14d, 24h
+        "8h": {"short_term": 6, "long_term": 42, "direction_change": 3},      # 48h, 14d, 24h
+        "12h": {"short_term": 4, "long_term": 28, "direction_change": 2},     # 48h, 14d, 24h
+        "1d": {"short_term": 5, "long_term": 30, "direction_change": 3},      # 5d, 30d, 3d
+        "3d": {"short_term": 4, "long_term": 20, "direction_change": 2},      # 12d, 60d, 6d
+        "1w": {"short_term": 4, "long_term": 16, "direction_change": 2},      # 28d, 112d, 14d
+    }
+    
     def __init__(self, data_provider):
         self.data_provider = data_provider
         self.feature_extractor = None  # Will be initialized on demand
         
+    def classify_market_regime(self, prices: pd.Series, interval: str, neutral_band: float = 0.2) -> int:
+        """
+        Classify market regime based on price action characteristics.
+        
+        Returns one of six regimes:
+        1 = Bullish-Stable
+        2 = Bullish-Volatile
+        3 = Neutral
+        4 = Bearish-Stable
+        5 = Bearish-Volatile
+        6 = Choppy (high direction changes)
+        
+        Args:
+            prices: Series of price data (typically close prices)
+            interval: Timeframe of the data (1m, 5m, 1h, etc.)
+            neutral_band: Threshold around 0 for returns to be considered neutral
+            
+        Returns:
+            int: Regime classification (1-6)
+        """
+        if len(prices) < 10:
+            # Not enough data for reliable classification, default to neutral
+            return 3
+            
+        # Get window sizes for this interval
+        window_params = self.regime_window_sizes.get(interval, {"short_term": 5, "long_term": 30, "direction_change": 3})
+        short_term = window_params["short_term"]
+        long_term = window_params["long_term"]
+        direction_window = window_params["direction_change"]
+        
+        # Ensure we have enough data
+        if len(prices) < long_term + 10:
+            # Not enough historical context, use what we have
+            long_term = max(10, len(prices) // 2)
+            short_term = max(5, long_term // 4)
+            direction_window = max(3, short_term // 2)
+            
+        # Calculate returns for trend detection
+        returns = prices.pct_change(short_term).dropna()
+        
+        # Calculate volatility
+        volatility = returns.rolling(short_term).std().dropna()
+        
+        # Calculate direction changes for choppiness detection
+        price_diff = prices.diff().fillna(0)
+        direction = np.sign(price_diff)
+        direction_changes = (direction.shift(1) != direction).astype(int)
+        direction_change_freq = direction_changes.rolling(direction_window).sum() / direction_window
+        
+        # Get the most recent data point for each metric
+        if len(returns) > 0 and len(volatility) > 0 and len(direction_change_freq) > 0:
+            try:
+                # Normalize metrics against their longer-term averages
+                avg_returns = returns.rolling(long_term).mean()
+                avg_volatility = volatility.rolling(long_term).mean()
+                avg_direction_freq = direction_change_freq.rolling(long_term).mean()
+                
+                # Get the most recent values
+                current_return = returns.iloc[-1]
+                current_volatility = volatility.iloc[-1]
+                current_direction_freq = direction_change_freq.iloc[-1]
+                
+                # Get reference values
+                ref_return = avg_returns.iloc[-1] if not pd.isna(avg_returns.iloc[-1]) else 0
+                ref_volatility = avg_volatility.iloc[-1] if not pd.isna(avg_volatility.iloc[-1]) else current_volatility
+                ref_direction_freq = avg_direction_freq.iloc[-1] if not pd.isna(avg_direction_freq.iloc[-1]) else 0.5
+                
+                # Normalize relative to historical averages
+                rel_return = current_return - ref_return
+                rel_volatility = current_volatility / (ref_volatility if ref_volatility > 0 else 0.0001)
+                rel_direction_freq = current_direction_freq / (ref_direction_freq if ref_direction_freq > 0 else 0.0001)
+                
+                # Check if market is choppy (high direction changes)
+                is_choppy = rel_direction_freq > 1.2  # 20% more direction changes than normal
+                
+                if is_choppy:
+                    # Choppy market regime (6)
+                    return 6
+                    
+                # Classify based on trend and volatility
+                if rel_return > neutral_band:
+                    # Bullish
+                    if rel_volatility <= 1.0:
+                        return 1  # Bullish-Stable
+                    else:
+                        return 2  # Bullish-Volatile
+                elif rel_return < -neutral_band:
+                    # Bearish
+                    if rel_volatility <= 1.0:
+                        return 4  # Bearish-Stable
+                    else:
+                        return 5  # Bearish-Volatile
+                else:
+                    # Neutral
+                    return 3
+            except Exception as e:
+                print(f"Error during regime classification: {str(e)}")
+                return 3  # Default to neutral on error
+        else:
+            # Not enough data
+            return 3  # Default to neutral
+    
+    def get_regime_name(self, regime_id: int) -> str:
+        """Get the name of a market regime by its ID."""
+        regime_names = {
+            1: "Bullish-Stable",
+            2: "Bullish-Volatile",
+            3: "Neutral",
+            4: "Bearish-Stable",
+            5: "Bearish-Volatile",
+            6: "Choppy"
+        }
+        return regime_names.get(regime_id, "Unknown")
+        
+    def filter_matches_by_regime(
+        self, 
+        matches: List[Dict], 
+        source_regime: int, 
+        tolerance: int = 0,
+        include_neutral: bool = True
+    ) -> List[Dict]:
+        """
+        Filter pattern matches to include only those from similar market regimes.
+        
+        Args:
+            matches: List of pattern match objects
+            source_regime: Regime of the current pattern (1-6)
+            tolerance: 0 means exact regime match only, 1 allows adjacent regimes
+            include_neutral: Whether to always include neutral regime (3) matches
+            
+        Returns:
+            List of matches from similar regimes
+        """
+        filtered_matches = []
+        
+        for match in matches:
+            # Get the match's regime
+            match_regime = match.get('regime', 3)  # Default to neutral if not available
+            
+            # Check if regimes match within tolerance
+            if abs(match_regime - source_regime) <= tolerance:
+                filtered_matches.append(match)
+            # Always include neutral regime matches if requested
+            elif include_neutral and match_regime == 3:
+                filtered_matches.append(match)
+                
+        return filtered_matches
+            
     def _find_similar_pattern(
         self,
         source_prices: Union[list, np.ndarray],
@@ -118,6 +284,9 @@ class BTCPatternFinder:
         search_end_time: str = None,
         source_idx_range: Tuple[int, int] = None,  # Add parameter for source index range (DEPRECATED)
         source_pattern: List[Dict] = None,  # NEW: Explicit source pattern data
+        use_regime_filter: bool = False,  # Whether to filter by market regime
+        regime_tolerance: int = 0,  # How strict to be with regime matching (0=exact, 1=adjacent)
+        include_neutral: bool = True,  # Whether to include neutral regime matches
     ) -> Dict:
         """
         Find historical patterns similar to a specified time range
@@ -333,21 +502,40 @@ class BTCPatternFinder:
                     match_start = match_data.iloc[0]["timestamp"]
                     match_end = match_data.iloc[-1]["timestamp"]
                     
+                    # Classify market regime for this match
+                    match_regime = self.classify_market_regime(match_data["close"], interval)
+                    
                     match_results.append({
                         "distance": float(match_dist),
                         "start_time": datetime.fromtimestamp(match_start / 1000).isoformat(),
                         "end_time": datetime.fromtimestamp(match_end / 1000).isoformat(),
                         "timestamp": int(match_start),
                         "pattern_data": match_data[["timestamp", "open", "high", "low", "close", "volume"]].to_dict("records"),
-                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}"
+                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}",
+                        "regime": match_regime,
+                        "regime_name": self.get_regime_name(match_regime)
                     })
                 
         # Sort by distance (similarity)
         sorted_results = sorted(match_results, key=lambda x: x["distance"])
         
-        # Add debugging info to help understand filtering
-        # Also apply a limit to the results based on the original max_matches request
-        final_results = sorted_results[:max_matches] if len(sorted_results) > max_matches else sorted_results
+        # Classify market regime for source pattern
+        source_regime = self.classify_market_regime(source_ohlcv["close"], interval)
+        source_regime_name = self.get_regime_name(source_regime)
+        
+        # Apply regime filtering if requested
+        regime_filtered_results = sorted_results
+        if use_regime_filter:
+            regime_filtered_results = self.filter_matches_by_regime(
+                sorted_results, 
+                source_regime, 
+                tolerance=regime_tolerance,
+                include_neutral=include_neutral
+            )
+            print(f"Regime filtering: {len(sorted_results)} matches → {len(regime_filtered_results)} matches")
+        
+        # Apply a limit to the results based on the original max_matches request
+        final_results = regime_filtered_results[:max_matches] if len(regime_filtered_results) > max_matches else regime_filtered_results
         
         # Store filtered scores (after time proximity filtering) for distribution visualization
         # This will exclude near-duplicates and only show meaningful differences
@@ -363,10 +551,13 @@ class BTCPatternFinder:
             "total_matches": len(final_results),
             "flashback_patterns": final_results,
             "filtered_matches_scores": filtered_raw_scores,  # Include only time-filtered scores for histogram
+            "source_regime": source_regime,
+            "source_regime_name": source_regime_name,
             "debug_info": {
                 "requested_matches": max_matches,
                 "stumpy_matches_found": len(matches) if matches else 0,
                 "unique_matches": len(sorted_results),  # Matches after time-proximity filtering
+                "regime_filtered_matches": len(regime_filtered_results) if use_regime_filter else None,
                 "final_matches": len(final_results)
             }
         }
@@ -431,6 +622,9 @@ class BTCPatternFinder:
         source_idx_range: Tuple[int, int] = None,
         source_pattern: List[Dict] = None,
         n_components: int = 2,
+        use_regime_filter: bool = False,  # Whether to filter by market regime
+        regime_tolerance: int = 0,  # How strict to be with regime matching (0=exact, 1=adjacent)
+        include_neutral: bool = True,  # Whether to include neutral regime matches
     ) -> Dict:
         """
         Find historical patterns similar to a specified time range using feature extraction
@@ -647,20 +841,43 @@ class BTCPatternFinder:
                     match_start = match_data.iloc[0]["timestamp"]
                     match_end = match_data.iloc[-1]["timestamp"]
                     
+                    # Classify market regime for this match
+                    match_regime = self.classify_market_regime(match_data["close"], interval)
+                    
                     match_results.append({
                         "distance": float(match_dist),
                         "start_time": datetime.fromtimestamp(match_start / 1000).isoformat(),
                         "end_time": datetime.fromtimestamp(match_end / 1000).isoformat(),
                         "timestamp": int(match_start),
                         "pattern_data": match_data[["timestamp", "open", "high", "low", "close", "volume"]].to_dict("records"),
-                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}"
+                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}",
+                        "regime": match_regime,
+                        "regime_name": self.get_regime_name(match_regime)
                     })
         
         # Sort by distance
         sorted_results = sorted(match_results, key=lambda x: x["distance"])
         
+        # Classify market regime for source pattern
+        source_regime = self.classify_market_regime(source_ohlcv["close"], interval)
+        source_regime_name = self.get_regime_name(source_regime)
+        
+        # Apply regime filtering if requested
+        regime_filtered_results = sorted_results
+        if use_regime_filter:
+            regime_filtered_results = self.filter_matches_by_regime(
+                sorted_results, 
+                source_regime, 
+                tolerance=regime_tolerance,
+                include_neutral=include_neutral
+            )
+            print(f"Regime filtering: {len(sorted_results)} matches → {len(regime_filtered_results)} matches")
+            
+            # Update match indices for visualization if using regime filtering
+            match_indices = [match_indices[sorted_results.index(match)] for match in regime_filtered_results if sorted_results.index(match) < len(match_indices)]
+        
         # Apply max_matches limit
-        final_results = sorted_results[:max_matches] if len(sorted_results) > max_matches else sorted_results
+        final_results = regime_filtered_results[:max_matches] if len(regime_filtered_results) > max_matches else regime_filtered_results
         
         # Store filtered scores for distribution visualization
         filtered_raw_scores = [match['distance'] for match in sorted_results]
@@ -679,10 +896,13 @@ class BTCPatternFinder:
             "filtered_matches_scores": filtered_raw_scores,
             "vis_data": vis_data,
             "match_indices": match_indices,
+            "source_regime": source_regime,
+            "source_regime_name": source_regime_name,
             "debug_info": {
                 "requested_matches": max_matches,
                 "feature_matches_found": len(matches) if matches else 0,
                 "unique_matches": len(sorted_results),
+                "regime_filtered_matches": len(regime_filtered_results) if use_regime_filter else None,
                 "final_matches": len(final_results)
             }
         }

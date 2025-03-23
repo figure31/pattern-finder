@@ -814,7 +814,10 @@ async def find_similar_patterns(
     following_points=None,  # Will be dynamically calculated based on pattern length
     search_start=None,      # Optional search range start
     search_end=None,        # Optional search range end
-    source_idx_range=None   # Add parameter for source index range - DEPRECATED
+    source_idx_range=None,  # Add parameter for source index range - DEPRECATED
+    use_regime_filter=False,  # Whether to filter by market regime
+    regime_tolerance=0,      # How strict to be with regime matching (0=exact, 1=adjacent)
+    include_neutral=True     # Whether to include neutral regime matches
 ):
     """Find similar patterns using the Matrix Profile approach"""
     pattern_finder = get_pattern_finder()
@@ -866,7 +869,10 @@ async def find_similar_patterns(
             max_matches=max_matches,
             following_points=following_points,
             search_start_time=search_start_iso,
-            search_end_time=search_end_iso
+            search_end_time=search_end_iso,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral
         )
     else:
         # Fall back to timestamp-based method (legacy)
@@ -878,7 +884,10 @@ async def find_similar_patterns(
             max_matches=max_matches,
             following_points=following_points,
             search_start_time=search_start_iso,
-            search_end_time=search_end_iso
+            search_end_time=search_end_iso,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral
         )
     
     return results
@@ -897,7 +906,10 @@ async def find_similar_patterns_feature_based(
     following_points=None,  # Will be dynamically calculated based on pattern length
     search_start=None,      # Optional search range start
     search_end=None,        # Optional search range end
-    n_components=2          # Number of components for dimensionality reduction
+    n_components=2,         # Number of components for dimensionality reduction
+    use_regime_filter=False,  # Whether to filter by market regime
+    regime_tolerance=0,      # How strict to be with regime matching (0=exact, 1=adjacent)
+    include_neutral=True     # Whether to include neutral regime matches
 ):
     """Find similar patterns using the Feature Extraction approach"""
     pattern_finder = get_pattern_finder()
@@ -950,7 +962,10 @@ async def find_similar_patterns_feature_based(
             following_points=following_points,
             search_start_time=search_start_iso,
             search_end_time=search_end_iso,
-            n_components=n_components
+            n_components=n_components,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral
         )
     else:
         # Fall back to timestamp-based method (legacy)
@@ -963,7 +978,10 @@ async def find_similar_patterns_feature_based(
             following_points=following_points,
             search_start_time=search_start_iso,
             search_end_time=search_end_iso,
-            n_components=n_components
+            n_components=n_components,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral
         )
     
     return results
@@ -1977,6 +1995,39 @@ if st.session_state.btc_data is not None:
             with components_container:
                 # Need to render something hidden to maintain layout
                 st.markdown('<div style="display:none;">placeholder</div>', unsafe_allow_html=True)
+                
+    # Add market regime filtering controls
+    regime_filter_cols = st.columns(3)
+    
+    with regime_filter_cols[0]:
+        st.markdown("**Market Regime Filtering**")
+        use_regime_filter = st.checkbox(
+            "Filter by Market Regime",
+            value=st.session_state.get('use_regime_filter', False),
+            help="Filter matches to show only those from similar market regimes as the source pattern"
+        )
+        st.session_state.use_regime_filter = use_regime_filter
+    
+    with regime_filter_cols[1]:
+        regime_tolerance = st.radio(
+            "Regime Match Strictness",
+            options=["Exact Match", "Similar Regimes"],
+            index=st.session_state.get('regime_tolerance', 0),
+            disabled=not use_regime_filter,
+            horizontal=True,
+            help="Exact match shows only patterns from the same regime. Similar regimes includes adjacent regimes."
+        )
+        # Convert UI selection to numeric value
+        st.session_state.regime_tolerance = 0 if regime_tolerance == "Exact Match" else 1
+    
+    with regime_filter_cols[2]:
+        include_neutral = st.checkbox(
+            "Include Neutral Regime Matches",
+            value=st.session_state.get('include_neutral', True),
+            disabled=not use_regime_filter,
+            help="Always include patterns from the neutral market regime regardless of the source pattern's regime"
+        )
+        st.session_state.include_neutral = include_neutral
     
     # Create an info button that expands to show the text
     if analysis_method == "Matrix Profile":
@@ -2187,7 +2238,10 @@ if st.session_state.btc_data is not None:
                                 max_matches=st.session_state.max_matches,
                                 following_points=pattern_length * 2,
                                 search_start=st.session_state.search_range['start_date'],
-                                search_end=st.session_state.search_range['end_date']
+                                search_end=st.session_state.search_range['end_date'],
+                                use_regime_filter=st.session_state.use_regime_filter,
+                                regime_tolerance=st.session_state.regime_tolerance,
+                                include_neutral=st.session_state.include_neutral
                             )
                         )
                     else:
@@ -2203,7 +2257,10 @@ if st.session_state.btc_data is not None:
                                 following_points=pattern_length * 2,
                                 search_start=st.session_state.search_range['start_date'],
                                 search_end=st.session_state.search_range['end_date'],
-                                n_components=st.session_state.n_components
+                                n_components=st.session_state.n_components,
+                                use_regime_filter=st.session_state.use_regime_filter,
+                                regime_tolerance=st.session_state.regime_tolerance,
+                                include_neutral=st.session_state.include_neutral
                             )
                         )
                 
@@ -2327,6 +2384,34 @@ if st.session_state.search_results:
         
         # Display the total count of matches
         total_matches = len(filtered_matches)
+        
+        # Display source pattern market regime if available
+        if 'source_regime' in results and 'source_regime_name' in results:
+            source_regime = results['source_regime']
+            source_regime_name = results['source_regime_name']
+            
+            # Style regimes with colors
+            regime_colors = {
+                1: "#4CAF50",  # Bullish-Stable: Green
+                2: "#8BC34A",  # Bullish-Volatile: Light Green
+                3: "#9E9E9E",  # Neutral: Grey
+                4: "#FF9800",  # Bearish-Stable: Orange
+                5: "#F44336",  # Bearish-Volatile: Red
+                6: "#2196F3"   # Choppy: Blue
+            }
+            regime_color = regime_colors.get(source_regime, "#9E9E9E")
+            
+            # Display the source pattern's regime with styling
+            st.markdown(f"**Source Pattern Market Regime:** <span style='color:{regime_color}'>{source_regime_name}</span>", 
+                        unsafe_allow_html=True)
+            
+            # Show regime filtering info if active
+            if st.session_state.use_regime_filter:
+                tolerance_text = "exact match" if st.session_state.regime_tolerance == 0 else "similar regimes"
+                neutral_text = ", including neutral regime matches" if st.session_state.include_neutral else ""
+                
+                st.markdown(f"*Filtering active:* Showing only {tolerance_text}{neutral_text}. "
+                          f"({results.get('debug_info', {}).get('regime_filtered_matches', 'N/A')} matches after filtering)")
         
         # Calculate post-pattern price direction statistics
         higher_count = 0
@@ -3480,9 +3565,10 @@ if st.session_state.search_results:
                 fig = make_subplots(
                     rows=2, 
                     cols=1,
+                    # Create regime-colored titles with HTML
                     subplot_titles=(
-                        f"Matched Pattern from {match_date} (with context)",
-                        "Reference Pattern"
+                        f"Matched Pattern from {match_date}",
+                        f"Reference Pattern"
                     ),
                     vertical_spacing=0.12,
                     row_heights=[0.5, 0.5]  # Equal height for both charts
@@ -3566,6 +3652,26 @@ if st.session_state.search_results:
                 )
                 
                 # Configure layout to match main chart style
+                # Get regime info
+                match_regime = match.get('regime', 3)
+                match_regime_name = match.get('regime_name', 'Neutral')
+                source_regime = results.get('source_regime', 3)
+                source_regime_name = results.get('source_regime_name', 'Neutral')
+                
+                # Define regime colors
+                regime_colors = {
+                    1: "#4CAF50",  # Bullish-Stable: Green
+                    2: "#8BC34A",  # Bullish-Volatile: Light Green
+                    3: "#9E9E9E",  # Neutral: Grey
+                    4: "#FF9800",  # Bearish-Stable: Orange
+                    5: "#F44336",  # Bearish-Volatile: Red
+                    6: "#2196F3"   # Choppy: Blue
+                }
+                
+                # Get colors for regimes
+                match_color = regime_colors.get(match_regime, "#9E9E9E")
+                source_color = regime_colors.get(source_regime, "#9E9E9E")
+                
                 fig.update_layout(
                     height=800,  # Tall chart for detail
                     template="plotly_dark",
@@ -3575,6 +3681,33 @@ if st.session_state.search_results:
                     showlegend=False,
                     xaxis_rangeslider_visible=False,
                     xaxis2_rangeslider_visible=False
+                )
+                
+                # Add annotations for regime info
+                fig.add_annotation(
+                    text=f"Regime: {match_regime_name}",
+                    xref="paper", yref="paper",
+                    x=0.5, y=1.0,
+                    showarrow=False,
+                    font=dict(color=match_color, size=14),
+                    bgcolor="rgba(0,0,0,0.5)",
+                    bordercolor=match_color,
+                    borderwidth=1,
+                    borderpad=4,
+                    row=1, col=1
+                )
+                
+                fig.add_annotation(
+                    text=f"Regime: {source_regime_name}",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.45,
+                    showarrow=False,
+                    font=dict(color=source_color, size=14),
+                    bgcolor="rgba(0,0,0,0.5)",
+                    bordercolor=source_color,
+                    borderwidth=1,
+                    borderpad=4,
+                    row=2, col=1
                 )
                 
                 return fig
@@ -3620,13 +3753,29 @@ if st.session_state.search_results:
                 # Create columns for match header - title on left, button on right
                 match_header_cols = st.columns([0.85, 0.15])
                 
-                # Header with match info and median comparison - with different score label based on analysis method
+                # Header with match info, regime and median comparison 
                 score_label = "Feature Distance" if results['type'] == 'feature_pattern' else "Shape Distance"
+                
+                # Get regime info with appropriate styling based on regime
+                match_regime = match.get('regime', 3)  # Default to neutral if not available
+                match_regime_name = match.get('regime_name', 'Neutral')
+                
+                # Style regimes with colors
+                regime_colors = {
+                    1: "#4CAF50",  # Bullish-Stable: Green
+                    2: "#8BC34A",  # Bullish-Volatile: Light Green
+                    3: "#9E9E9E",  # Neutral: Grey
+                    4: "#FF9800",  # Bearish-Stable: Orange
+                    5: "#F44336",  # Bearish-Volatile: Red
+                    6: "#2196F3"   # Choppy: Blue
+                }
+                regime_color = regime_colors.get(match_regime, "#9E9E9E")
+                regime_styled = f"<span style='color:{regime_color}'>{match_regime_name}</span>"
                 
                 with match_header_cols[0]:
                     st.markdown(
                         f"**Match #{i+1}**: {datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')} "
-                        f"({score_label}: {match['distance']:.4f}). Past/future median: {median_result_styled}", 
+                        f"({score_label}: {match['distance']:.4f}). Regime: {regime_styled}. Past/future avg: {median_result_styled}", 
                         unsafe_allow_html=True
                     )
                 
