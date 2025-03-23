@@ -44,7 +44,7 @@ class BinanceDataProvider(BaseDataProvider):
     """
     
     def __init__(self):
-        self.base_url = "https://api.binance.com/api/v3"
+        self.base_url = "https://api.binance.us/api/v3"
         self._max_retries = 3
         self._request_delay = 0.1  # 100ms between requests
         
