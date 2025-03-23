@@ -2028,6 +2028,17 @@ if st.session_state.btc_data is not None:
             help="Always include patterns from the neutral market regime regardless of the source pattern's regime"
         )
         st.session_state.include_neutral = include_neutral
+        
+    # Add weighted prediction option
+    weighted_prediction_col = st.columns(3)
+    with weighted_prediction_col[0]:
+        st.markdown("**Prediction Method**")
+        use_weighted = st.checkbox(
+            "Use Weighted Prediction",
+            value=st.session_state.get('use_weighted', False),
+            help="Better matches (lower scores) have higher influence on the prediction line"
+        )
+        st.session_state.use_weighted = use_weighted
     
     # Create an info button that expands to show the text
     if analysis_method == "Matrix Profile":
@@ -2737,12 +2748,19 @@ if st.session_state.search_results:
             # Price direction stats now displayed earlier in the UI flow
             
             # Function to create prediction visualization chart that shows match outcomes
-            def create_prediction_chart(source_pattern, matches, style=None, max_matches=30, main_df=None, start_idx=None, end_idx=None):
+            def create_prediction_chart(source_pattern, matches, style=None, max_matches=30, main_df=None, start_idx=None, end_idx=None, use_weighted=False):
                 """
                 Create a chart showing potential future outcomes based on all matches.
                 
                 Args:
                     source_pattern: Reference pattern data
+                    matches: List of pattern matches
+                    style: Candlestick style for the chart
+                    max_matches: Maximum number of matches to display
+                    main_df: Main dataframe for extracting actual future data
+                    start_idx: Start index of pattern in main dataframe
+                    end_idx: End index of pattern in main dataframe
+                    use_weighted: Whether to use weighted averaging instead of median
                     matches: List of match results with pattern_data
                     style: Chart style dictionary
                     max_matches: Maximum number of matches to include in visualization
@@ -3015,7 +3033,7 @@ if st.session_state.search_results:
                                 )
                             )
                 
-                # Calculate the "ghost path" - median of all matches at each point
+                # Calculate the "ghost path" - either median or weighted average of all matches at each point
                 if match_futures:
                     # Collect all percentage changes
                     all_pct_series = []
@@ -3034,31 +3052,79 @@ if st.session_state.search_results:
                     # Stack into a DataFrame
                     pct_df = pd.concat(all_pct_series, axis=1)
                     
-                    # Calculate median path (ignoring NaN values)
-                    median_pcts = pct_df.median(axis=1, skipna=True)
+                    if use_weighted:
+                        # Use weighted average based on match quality
+                        match_scores = [m['distance'] for m in match_futures]  # Access distance directly
+                        max_score = max(match_scores)
+                        min_score = min(match_scores)
+                        
+                        # Ensure we don't divide by zero
+                        score_range = max_score - min_score
+                        if score_range == 0:
+                            # Equal weights if all scores are the same
+                            weights = [1.0 for _ in match_scores]
+                        else:
+                            # Calculate inverse weights (lower score = better match = higher weight)
+                            weights = [(max_score - score) / score_range for score in match_scores]
+                            
+                            # Apply quadratic weighting to emphasize better matches more
+                            weights = [w**2 for w in weights]
+                            
+                            # Normalize weights to sum to 1
+                            sum_weights = sum(weights)
+                            weights = [w / sum_weights for w in weights]
+                        
+                        # Apply weights to each column
+                        weighted_df = pct_df.copy()
+                        for i, col in enumerate(weighted_df.columns):
+                            weighted_df[col] = weighted_df[col] * weights[i]
+                            
+                        # Sum across columns to get weighted average
+                        weighted_pcts = weighted_df.sum(axis=1, skipna=True)
+                        prediction_pcts = weighted_pcts
+                        path_name = "Weighted Path"
+                    else:
+                        # Use standard median approach
+                        prediction_pcts = pct_df.median(axis=1, skipna=True)
+                        path_name = "Median Path"
                     
                     # Convert back to prices
-                    median_prices = [reference_price * (1 + pct/100) for pct in median_pcts]
+                    prediction_prices = [reference_price * (1 + pct/100) for pct in prediction_pcts]
                     
-                    # Make sure we have enough projection_times for the median
-                    while len(projection_times) < len(median_prices):
+                    # Make sure we have enough projection_times for the prediction
+                    while len(projection_times) < len(prediction_prices):
                         next_time = reference_time + timedelta(seconds=avg_time_diff * (len(projection_times) + 1))
                         projection_times.append(next_time)
                     
+                    # Add reference horizontal line at the reference price level
+                    pred_fig.add_shape(
+                        type="line",
+                        x0=reference_time,  # Start at reference point
+                        x1=projection_times[-1],  # End at last projection time point
+                        y0=reference_price,  # At the reference price level
+                        y1=reference_price,
+                        line=dict(
+                            color="rgba(150, 150, 150, 0.7)",
+                            width=1.5,
+                            dash="dot"
+                        )
+                    )
+                    
                     # Add the median path with reduced thickness (2 instead of 3)
+                    # Keep the original look and feel, just use prediction values
                     pred_fig.add_trace(
                         go.Scatter(
-                            x=[reference_time] + projection_times[:len(median_prices)],
-                            y=[reference_price] + median_prices,
+                            x=[reference_time] + projection_times[:len(prediction_prices)],
+                            y=[reference_price] + prediction_prices,
                             mode='lines',
                             line=dict(
                                 color='rgba(255, 255, 255, 1.0)',  # White
                                 width=2,  # Reduced thickness from 3 to 2
-                                dash='solid'
+                                dash='solid'  # Always use solid line, regardless of weighted or not
                             ),
-                            name="Median Path",
+                            name=path_name,
                             hoverinfo="y+text",
-                            hovertext=["Reference"] + [f"{pct:.2f}% change" for pct in median_pcts.values]
+                            hovertext=["Reference"] + [f"{pct:.2f}% change" for pct in prediction_pcts.values]
                         )
                     )
                 
@@ -3365,7 +3431,8 @@ if st.session_state.search_results:
                     max_matches=len(filtered_matches),  # Use all filtered matches instead of hardcoded limit
                     main_df=df,  # Pass main dataframe to extract actual future data
                     start_idx=start_idx,  # Pass start index for the pattern
-                    end_idx=end_idx  # Pass end index for the pattern
+                    end_idx=end_idx,  # Pass end index for the pattern
+                    use_weighted=use_weighted  # Pass weighted option
                 )
                 
                 # Unpack return value - contains figure and stats
