@@ -1321,6 +1321,7 @@ with col_title:
         <h1 style="margin: 0; padding: 0; font-size: 1rem; margin-bottom: 0.1rem;">
             Pattern Searcher: Time Series Analysis Using Matrix Profiles and High-Dimensional Features Extraction by 
             <a href="https://x.com/figure31_" target="_blank" style="color: #4287f5; text-decoration: none;">Figure31</a>
+            For <a href="https://x.com/standardvoids" target="_blank" style="color: #4287f5; text-decoration: none;">S&V</a>
         </h1>
         """, 
         unsafe_allow_html=True
