@@ -39,139 +39,117 @@ class BTCPatternFinder:
         "1w": 1/7,      # ~0.14 points per day
     }
     
-    # Window sizes for market regime classification based on timeframe
-    regime_window_sizes = {
-        "1m": {"short_term": 120, "long_term": 720, "direction_change": 60},  # 2h, 12h, 1h
-        "3m": {"short_term": 80, "long_term": 480, "direction_change": 40},   # 4h, 24h, 2h
-        "5m": {"short_term": 72, "long_term": 288, "direction_change": 36},   # 6h, 24h, 3h
-        "15m": {"short_term": 32, "long_term": 192, "direction_change": 16},  # 8h, 48h, 4h
-        "30m": {"short_term": 16, "long_term": 96, "direction_change": 8},    # 8h, 48h, 4h
-        "1h": {"short_term": 12, "long_term": 72, "direction_change": 6},     # 12h, 3d, 6h
-        "2h": {"short_term": 12, "long_term": 72, "direction_change": 6},     # 24h, 6d, 12h
-        "4h": {"short_term": 12, "long_term": 72, "direction_change": 6},     # 48h, 12d, 24h
-        "6h": {"short_term": 8, "long_term": 56, "direction_change": 4},      # 48h, 14d, 24h
-        "8h": {"short_term": 6, "long_term": 42, "direction_change": 3},      # 48h, 14d, 24h
-        "12h": {"short_term": 4, "long_term": 28, "direction_change": 2},     # 48h, 14d, 24h
-        "1d": {"short_term": 5, "long_term": 30, "direction_change": 3},      # 5d, 30d, 3d
-        "3d": {"short_term": 4, "long_term": 20, "direction_change": 2},      # 12d, 60d, 6d
-        "1w": {"short_term": 4, "long_term": 16, "direction_change": 2},      # 28d, 112d, 14d
-    }
+    # Nothing needed here - the old regime_window_sizes dictionary has been removed
+    # as we're now using a dynamic pattern-length based approach
     
     def __init__(self, data_provider):
         self.data_provider = data_provider
         self.feature_extractor = None  # Will be initialized on demand
         
-    def classify_market_regime(self, prices: pd.Series, interval: str, neutral_band: float = 0.2) -> int:
+    def classify_market_regime(
+        self, 
+        prices: pd.Series, 
+        interval: str, 
+        window_multiplier: int = 5,
+        trend_threshold: float = 0.03,
+        efficiency_threshold: float = 0.5
+    ) -> int:
         """
-        Classify market regime based on price action characteristics.
+        Classify market regime based on price action characteristics using a simplified approach.
         
         Returns one of six regimes:
-        1 = Bullish-Stable
+        1 = Bullish-Trendy
         2 = Bullish-Volatile
-        3 = Neutral
-        4 = Bearish-Stable
-        5 = Bearish-Volatile
-        6 = Choppy (high direction changes)
+        3 = Neutral-Trendy
+        4 = Neutral-Volatile
+        5 = Bearish-Trendy
+        6 = Bearish-Volatile
         
         Args:
             prices: Series of price data (typically close prices)
-            interval: Timeframe of the data (1m, 5m, 1h, etc.)
-            neutral_band: Threshold around 0 for returns to be considered neutral
+            interval: Timeframe of the data (not used in new implementation, kept for compatibility)
+            window_multiplier: Multiplier for pattern length to determine lookback window (default: 5)
+            trend_threshold: Threshold for price change to be considered bullish/bearish (default: 3%)
+            efficiency_threshold: Threshold for efficiency ratio to determine trending/volatile (default: 0.5)
             
         Returns:
             int: Regime classification (1-6)
         """
-        if len(prices) < 10:
-            # Not enough data for reliable classification, default to neutral
+        if len(prices) < 4:
+            # Not enough data for reliable classification, default to neutral-trendy
             return 3
             
-        # Get window sizes for this interval
-        window_params = self.regime_window_sizes.get(interval, {"short_term": 5, "long_term": 30, "direction_change": 3})
-        short_term = window_params["short_term"]
-        long_term = window_params["long_term"]
-        direction_window = window_params["direction_change"]
-        
-        # Ensure we have enough data
-        if len(prices) < long_term + 10:
-            # Not enough historical context, use what we have
-            long_term = max(10, len(prices) // 2)
-            short_term = max(5, long_term // 4)
-            direction_window = max(3, short_term // 2)
+        try:
+            # Calculate lookback window size based on pattern length
+            pattern_length = len(prices)
+            lookback = min(pattern_length * window_multiplier, len(prices))
             
-        # Calculate returns for trend detection
-        returns = prices.pct_change(short_term).dropna()
-        
-        # Calculate volatility
-        volatility = returns.rolling(short_term).std().dropna()
-        
-        # Calculate direction changes for choppiness detection
-        price_diff = prices.diff().fillna(0)
-        direction = np.sign(price_diff)
-        direction_changes = (direction.shift(1) != direction).astype(int)
-        direction_change_freq = direction_changes.rolling(direction_window).sum() / direction_window
-        
-        # Get the most recent data point for each metric
-        if len(returns) > 0 and len(volatility) > 0 and len(direction_change_freq) > 0:
-            try:
-                # Normalize metrics against their longer-term averages
-                avg_returns = returns.rolling(long_term).mean()
-                avg_volatility = volatility.rolling(long_term).mean()
-                avg_direction_freq = direction_change_freq.rolling(long_term).mean()
+            # If we don't have enough data for the ideal lookback, use what we have
+            lookback = max(pattern_length, lookback)
+            
+            # Get the lookback prices (will be the same as prices if lookback == len(prices))
+            lookback_prices = prices.iloc[-lookback:]
+            
+            # Calculate basic metrics
+            start_price = lookback_prices.iloc[0]
+            end_price = lookback_prices.iloc[-1]
+            
+            # Calculate the price change percentage
+            price_change_pct = (end_price - start_price) / start_price
+            
+            # Calculate the efficiency ratio
+            # |net price change| / sum of absolute price changes
+            price_diffs = lookback_prices.diff().dropna().abs()
+            total_movement = price_diffs.sum()
+            net_movement = abs(end_price - start_price)
+            
+            # Avoid division by zero
+            if total_movement == 0:
+                efficiency_ratio = 1.0  # Perfect efficiency if no movement
+            else:
+                efficiency_ratio = net_movement / total_movement
+            
+            # Determine trend direction
+            if price_change_pct > trend_threshold:
+                trend = "bullish"
+            elif price_change_pct < -trend_threshold:
+                trend = "bearish"
+            else:
+                trend = "neutral"
                 
-                # Get the most recent values
-                current_return = returns.iloc[-1]
-                current_volatility = volatility.iloc[-1]
-                current_direction_freq = direction_change_freq.iloc[-1]
-                
-                # Get reference values
-                ref_return = avg_returns.iloc[-1] if not pd.isna(avg_returns.iloc[-1]) else 0
-                ref_volatility = avg_volatility.iloc[-1] if not pd.isna(avg_volatility.iloc[-1]) else current_volatility
-                ref_direction_freq = avg_direction_freq.iloc[-1] if not pd.isna(avg_direction_freq.iloc[-1]) else 0.5
-                
-                # Normalize relative to historical averages
-                rel_return = current_return - ref_return
-                rel_volatility = current_volatility / (ref_volatility if ref_volatility > 0 else 0.0001)
-                rel_direction_freq = current_direction_freq / (ref_direction_freq if ref_direction_freq > 0 else 0.0001)
-                
-                # Check if market is choppy (high direction changes)
-                is_choppy = rel_direction_freq > 1.2  # 20% more direction changes than normal
-                
-                if is_choppy:
-                    # Choppy market regime (6)
-                    return 6
-                    
-                # Classify based on trend and volatility
-                if rel_return > neutral_band:
-                    # Bullish
-                    if rel_volatility <= 1.0:
-                        return 1  # Bullish-Stable
-                    else:
-                        return 2  # Bullish-Volatile
-                elif rel_return < -neutral_band:
-                    # Bearish
-                    if rel_volatility <= 1.0:
-                        return 4  # Bearish-Stable
-                    else:
-                        return 5  # Bearish-Volatile
+            # Determine market characteristic
+            is_trendy = efficiency_ratio >= efficiency_threshold
+            
+            # Classify into one of six regimes
+            if trend == "bullish":
+                if is_trendy:
+                    return 1  # Bullish-Trendy
                 else:
-                    # Neutral
-                    return 3
-            except Exception as e:
-                print(f"Error during regime classification: {str(e)}")
-                return 3  # Default to neutral on error
-        else:
-            # Not enough data
-            return 3  # Default to neutral
+                    return 2  # Bullish-Volatile
+            elif trend == "bearish":
+                if is_trendy:
+                    return 5  # Bearish-Trendy
+                else:
+                    return 6  # Bearish-Volatile
+            else:  # neutral
+                if is_trendy:
+                    return 3  # Neutral-Trendy
+                else:
+                    return 4  # Neutral-Volatile
+                    
+        except Exception as e:
+            print(f"Error during regime classification: {str(e)}")
+            return 3  # Default to Neutral-Trendy on error
     
     def get_regime_name(self, regime_id: int) -> str:
         """Get the name of a market regime by its ID."""
         regime_names = {
-            1: "Bullish-Stable",
+            1: "Bullish-Trendy",
             2: "Bullish-Volatile",
-            3: "Neutral",
-            4: "Bearish-Stable",
-            5: "Bearish-Volatile",
-            6: "Choppy"
+            3: "Neutral-Trendy",
+            4: "Neutral-Volatile",
+            5: "Bearish-Trendy",
+            6: "Bearish-Volatile"
         }
         return regime_names.get(regime_id, "Unknown")
         
@@ -287,6 +265,8 @@ class BTCPatternFinder:
         use_regime_filter: bool = False,  # Whether to filter by market regime
         regime_tolerance: int = 0,  # How strict to be with regime matching (0=exact, 1=adjacent)
         include_neutral: bool = True,  # Whether to include neutral regime matches
+        trend_threshold: float = 0.03,  # Threshold for price change to be considered bullish/bearish
+        efficiency_threshold: float = 0.5,  # Threshold for efficiency ratio to determine trending/volatile
     ) -> Dict:
         """
         Find historical patterns similar to a specified time range
@@ -458,13 +438,13 @@ class BTCPatternFinder:
                         
                         # Convert interval to seconds for threshold
                         if interval == "1d":
-                            threshold = 60 * 60 * 24 * 3  # 3 days
+                            threshold = 60 * 60 * 24 * 5  # 5 days
                         elif interval == "1h":
-                            threshold = 60 * 60 * 8       # 8 hours (increased from 5)
+                            threshold = 60 * 60 * 24 * 2  # 2 days
                         elif interval == "4h":
-                            threshold = 60 * 60 * 12      # 12 hours (increased from 10)
+                            threshold = 60 * 60 * 24 * 3.5  # 3.5 days
                         elif interval == "30m":
-                            threshold = 60 * 30 * 12      # 6 hours (increased from 2.5 hours)
+                            threshold = 60 * 30 * 12      # 6 hours
                         elif interval == "15m":
                             threshold = 60 * 15 * 16      # 4 hours (increased from ~2 hours)
                         elif interval == "5m":
@@ -503,7 +483,12 @@ class BTCPatternFinder:
                     match_end = match_data.iloc[-1]["timestamp"]
                     
                     # Classify market regime for this match
-                    match_regime = self.classify_market_regime(match_data["close"], interval)
+                    match_regime = self.classify_market_regime(
+                        match_data["close"], 
+                        interval,
+                        trend_threshold=trend_threshold,
+                        efficiency_threshold=efficiency_threshold
+                    )
                     
                     match_results.append({
                         "distance": float(match_dist),
@@ -520,7 +505,12 @@ class BTCPatternFinder:
         sorted_results = sorted(match_results, key=lambda x: x["distance"])
         
         # Classify market regime for source pattern
-        source_regime = self.classify_market_regime(source_ohlcv["close"], interval)
+        source_regime = self.classify_market_regime(
+            source_ohlcv["close"], 
+            interval,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
+        )
         source_regime_name = self.get_regime_name(source_regime)
         
         # Apply regime filtering if requested
@@ -625,6 +615,8 @@ class BTCPatternFinder:
         use_regime_filter: bool = False,  # Whether to filter by market regime
         regime_tolerance: int = 0,  # How strict to be with regime matching (0=exact, 1=adjacent)
         include_neutral: bool = True,  # Whether to include neutral regime matches
+        trend_threshold: float = 0.03,  # Threshold for price change to be considered bullish/bearish
+        efficiency_threshold: float = 0.5,  # Threshold for efficiency ratio to determine trending/volatile
     ) -> Dict:
         """
         Find historical patterns similar to a specified time range using feature extraction
@@ -800,13 +792,13 @@ class BTCPatternFinder:
                         
                         # Convert interval to seconds for threshold
                         if interval == "1d":
-                            threshold = 60 * 60 * 24 * 3  # 3 days
+                            threshold = 60 * 60 * 24 * 5  # 5 days
                         elif interval == "1h":
-                            threshold = 60 * 60 * 8       # 8 hours (increased from 5)
+                            threshold = 60 * 60 * 24 * 2  # 2 days
                         elif interval == "4h":
-                            threshold = 60 * 60 * 12      # 12 hours (increased from 10)
+                            threshold = 60 * 60 * 24 * 3.5  # 3.5 days
                         elif interval == "30m":
-                            threshold = 60 * 30 * 12      # 6 hours (increased from 2.5 hours)
+                            threshold = 60 * 30 * 12      # 6 hours
                         elif interval == "15m":
                             threshold = 60 * 15 * 16      # 4 hours (increased from ~2 hours)
                         elif interval == "5m":
@@ -842,7 +834,12 @@ class BTCPatternFinder:
                     match_end = match_data.iloc[-1]["timestamp"]
                     
                     # Classify market regime for this match
-                    match_regime = self.classify_market_regime(match_data["close"], interval)
+                    match_regime = self.classify_market_regime(
+                        match_data["close"], 
+                        interval,
+                        trend_threshold=trend_threshold,
+                        efficiency_threshold=efficiency_threshold
+                    )
                     
                     match_results.append({
                         "distance": float(match_dist),
@@ -859,7 +856,12 @@ class BTCPatternFinder:
         sorted_results = sorted(match_results, key=lambda x: x["distance"])
         
         # Classify market regime for source pattern
-        source_regime = self.classify_market_regime(source_ohlcv["close"], interval)
+        source_regime = self.classify_market_regime(
+            source_ohlcv["close"], 
+            interval,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
+        )
         source_regime_name = self.get_regime_name(source_regime)
         
         # Apply regime filtering if requested

@@ -164,6 +164,26 @@ st.markdown(f"""
         width: 100%;
     }}
     
+    /* Text input styling to match select boxes */
+    .stTextInput > div > div > input {{
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
+        border-width: 1px !important;
+        color: var(--text-color) !important;
+    }}
+    
+    .stTextInput > div > div > input:focus {{
+        border-color: var(--button-hover-border) !important;
+        border-width: 1px !important;
+        box-shadow: none !important;
+    }}
+    
+    /* Make sure text input container has the same styling as other widgets */
+    .stTextInput > div {{
+        border: 1px solid var(--button-border) !important;
+        border-radius: 4px !important;
+    }}
+    
     /* Tooltip styling */
     div[data-testid="stTooltipIcon"] span {{
         background-color: #262730;
@@ -172,6 +192,7 @@ st.markdown(f"""
         border-radius: 0.2rem;
     }}
     
+    
     /* ===== BUTTONS & SELECTORS ===== */
     /* Button styling - consolidated */
     .stButton button {{
@@ -179,6 +200,10 @@ st.markdown(f"""
         color: #333333 !important;
         background-color: var(--button-bg) !important;
         border-color: var(--button-border) !important;
+        height: 2.5rem !important; /* Match text input height */
+        padding: 0px !important;
+        line-height: 1.15 !important;
+        font-size: 0.9rem !important;
     }}
     
     .stButton button:hover {{
@@ -817,7 +842,9 @@ async def find_similar_patterns(
     source_idx_range=None,  # Add parameter for source index range - DEPRECATED
     use_regime_filter=False,  # Whether to filter by market regime
     regime_tolerance=0,      # How strict to be with regime matching (0=exact, 1=adjacent)
-    include_neutral=True     # Whether to include neutral regime matches
+    include_neutral=True,    # Whether to include neutral regime matches
+    trend_threshold=0.03,    # Threshold for price change to be considered bullish/bearish
+    efficiency_threshold=0.5 # Threshold for efficiency ratio to determine trending/volatile
 ):
     """Find similar patterns using the Matrix Profile approach"""
     pattern_finder = get_pattern_finder()
@@ -872,7 +899,9 @@ async def find_similar_patterns(
             search_end_time=search_end_iso,
             use_regime_filter=use_regime_filter,
             regime_tolerance=regime_tolerance,
-            include_neutral=include_neutral
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     else:
         # Fall back to timestamp-based method (legacy)
@@ -887,7 +916,9 @@ async def find_similar_patterns(
             search_end_time=search_end_iso,
             use_regime_filter=use_regime_filter,
             regime_tolerance=regime_tolerance,
-            include_neutral=include_neutral
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     
     return results
@@ -909,7 +940,9 @@ async def find_similar_patterns_feature_based(
     n_components=2,         # Number of components for dimensionality reduction
     use_regime_filter=False,  # Whether to filter by market regime
     regime_tolerance=0,      # How strict to be with regime matching (0=exact, 1=adjacent)
-    include_neutral=True     # Whether to include neutral regime matches
+    include_neutral=True,    # Whether to include neutral regime matches
+    trend_threshold=0.03,    # Threshold for price change to be considered bullish/bearish
+    efficiency_threshold=0.5 # Threshold for efficiency ratio to determine trending/volatile
 ):
     """Find similar patterns using the Feature Extraction approach"""
     pattern_finder = get_pattern_finder()
@@ -965,7 +998,9 @@ async def find_similar_patterns_feature_based(
             n_components=n_components,
             use_regime_filter=use_regime_filter,
             regime_tolerance=regime_tolerance,
-            include_neutral=include_neutral
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     else:
         # Fall back to timestamp-based method (legacy)
@@ -981,7 +1016,9 @@ async def find_similar_patterns_feature_based(
             n_components=n_components,
             use_regime_filter=use_regime_filter,
             regime_tolerance=regime_tolerance,
-            include_neutral=include_neutral
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     
     return results
@@ -1810,17 +1847,123 @@ if st.session_state.btc_data is not None:
         unsafe_allow_html=True
     )
     
-    # Create a unique key for the slider based on the timeframe to ensure full reset when switching
-    slider_key = f"pattern_selection_slider_{interval}"
+    # Create unique keys for the pattern selection based on timeframe
+    start_key = f"pattern_selection_start_{interval}"
+    end_key = f"pattern_selection_end_{interval}"
+
+    # Create columns for the inputs and buttons - equal width for consistent sizing
+    pattern_cols = st.columns([3, 1, 1, 3, 1, 1])
+
+    # Start index section with title
+    with pattern_cols[0]:
+        st.markdown("**Start Index**")
+
+    # Empty column for alignment
+    with pattern_cols[1]:
+        st.write("")
+
+    # Empty column for alignment
+    with pattern_cols[2]:
+        st.write("")
     
-    # Create the slider that will update automatically
-    start_slider, end_slider = st.select_slider(
-        "Pattern Selection",  # Proper non-empty label
-        options=list(range(len(df))),
-        value=(default_start, default_end),
-        label_visibility="collapsed",  # Hide the label but it's there for accessibility
-        key=slider_key  # Use the timeframe-specific key
-    )
+    # Create a new row for the actual inputs and buttons
+    input_row = st.columns([3, 1, 1, 3, 1, 1])
+    
+    # Start index input field
+    with input_row[0]:
+        # Check if we have a stored value from button click
+        if f"{start_key}_stored_value" in st.session_state:
+            input_value = str(st.session_state[f"{start_key}_stored_value"])
+            # Clear stored value after using it
+            del st.session_state[f"{start_key}_stored_value"]
+        else:
+            input_value = str(default_start)
+            
+        start_str = st.text_input(
+            "Start Index",
+            value=input_value,
+            label_visibility="collapsed",
+            key=f"{start_key}_input",
+            help="Set the start index of the pattern"
+        )
+        # Validate input
+        try:
+            start_slider = int(start_str)
+            start_slider = min(max(start_slider, 0), len(df)-2)  # Ensure within valid range
+        except ValueError:
+            start_slider = default_start
+
+    # Decrease start button
+    with input_row[1]:
+        if st.button("←", key=f"{start_key}_decrease", use_container_width=True):
+            start_slider = max(start_slider - 1, 0)
+            # Store the value to be used in the next render
+            st.session_state[f"{start_key}_stored_value"] = start_slider
+            st.rerun()
+
+    # Increase start button
+    with input_row[2]:
+        if st.button("→", key=f"{start_key}_increase", use_container_width=True):
+            start_slider = min(start_slider + 1, end_slider - 1)
+            # Store the value to be used in the next render
+            st.session_state[f"{start_key}_stored_value"] = start_slider
+            st.rerun()
+
+    # End index section with title
+    with pattern_cols[3]:
+        st.markdown("**End Index**")
+    
+    # Empty column for alignment
+    with pattern_cols[4]:
+        st.write("")
+
+    # Empty column for alignment
+    with pattern_cols[5]:
+        st.write("")
+    
+    # Use the same input row created earlier
+    # End index input field
+    with input_row[3]:
+        # Check if we have a stored value from button click
+        if f"{end_key}_stored_value" in st.session_state:
+            input_value = str(st.session_state[f"{end_key}_stored_value"])
+            # Clear stored value after using it
+            del st.session_state[f"{end_key}_stored_value"]
+        else:
+            input_value = str(default_end)
+            
+        end_str = st.text_input(
+            "End Index",
+            value=input_value,
+            label_visibility="collapsed",
+            key=f"{end_key}_input",
+            help="Set the end index of the pattern"
+        )
+        # Validate input
+        try:
+            end_slider = int(end_str)
+            end_slider = min(max(end_slider, start_slider + 1), len(df)-1)  # Ensure within valid range
+        except ValueError:
+            end_slider = default_end
+
+    # Decrease end button
+    with input_row[4]:
+        if st.button("←", key=f"{end_key}_decrease", use_container_width=True):
+            end_slider = max(end_slider - 1, start_slider + 1)
+            # Store the value to be used in the next render
+            st.session_state[f"{end_key}_stored_value"] = end_slider
+            st.rerun()
+
+    # Increase end button
+    with input_row[5]:
+        if st.button("→", key=f"{end_key}_increase", use_container_width=True):
+            end_slider = min(end_slider + 1, len(df)-1)
+            # Store the value to be used in the next render
+            st.session_state[f"{end_key}_stored_value"] = end_slider
+            st.rerun()
+            
+    # Display range info
+    st.caption(f"Valid range: 0-{len(df)-1}")
     
     # Removed caption text as requested
     
@@ -1943,6 +2086,46 @@ if st.session_state.btc_data is not None:
             position: absolute !important;
             z-index: -999 !important;
         }
+        
+        /* ===== EXPAND BUTTON FIXES ===== */
+        /* Global button styling to ensure consistent button appearance */
+        .stButton button {
+            margin: 0 !important;
+            padding: 0.55rem 0.55rem !important;
+            height: 2.5rem !important;
+            min-height: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        /* Match container styling */
+        .match_header_cols {
+            display: flex !important;
+            align-items: center !important;
+        }
+        
+        /* Fix match header column spacing */
+        .match_header_cols [data-testid="column"] {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Remove extra spacing around containers in match header */
+        .match_header_cols [data-testid="stMarkdownContainer"],
+        .match_header_cols [data-testid="element-container"] {
+            margin-bottom: 0 !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        /* Ensure vertical alignment of the button */
+        .match_header_cols .stButton {
+            display: flex !important;
+            align-items: center !important;
+            height: 100% !important;
+        }
         </style>
         """,
         unsafe_allow_html=True
@@ -1958,87 +2141,210 @@ if st.session_state.btc_data is not None:
     analysis_method_cols = st.columns([1, 1])
     
     with analysis_method_cols[0]:
-        # Add analysis method selection
-        st.markdown("**Analysis Method**")
+        # Analysis Method with help icon directly next to it
+        if "analysis_method" not in st.session_state or st.session_state.analysis_method == "Matrix Profile":
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Analysis Method <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Matrix Profile finds visually similar patterns using a shape-based matching algorithm. It's ideal for finding historical occasions where price action behaved similarly.")
+        else:
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Analysis Method <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Feature Extraction uses Principal Component Analysis (PCA) to find statistically similar patterns based on underlying market conditions.")
+        
+        # Function to update tooltip when method changes
+        def on_method_change():
+            st.session_state.needs_rerun = True
+            
         analysis_method = st.selectbox(
             "Analysis Method",
             options=["Matrix Profile", "Feature Extraction"],
             index=0 if "analysis_method" not in st.session_state else 
                   (0 if st.session_state.analysis_method == "Matrix Profile" else 1),
             label_visibility="collapsed",
-            help="Matrix Profile finds exact shape matches. Feature Extraction finds patterns with similar statistical properties."
+            on_change=on_method_change,
+            key="analysis_method_select"
         )
         # Store the selected method in session state
         st.session_state.analysis_method = analysis_method
+        
+        # Handle rerun to update tooltip
+        if st.session_state.get('needs_rerun', False):
+            st.session_state.needs_rerun = False
+            st.rerun()
     
     with analysis_method_cols[1]:
         # Always create a container for consistency regardless of method
         components_container = st.container()
         
-        # Show component selector only if Feature Extraction is selected
-        if analysis_method == "Feature Extraction":
-            with components_container:
-                st.markdown("**Number of Components**")
+        # Always create the same header structure regardless of method
+        with components_container:
+            # Number of Components title with help icon directly next to it
+            if analysis_method == "Feature Extraction":
+                st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Number of Components <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Number of components for dimensionality reduction. 2-3 components visualize well, more components can capture more complex relationships.")
+            else:
+                # Empty div to maintain layout
+                st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Number of Components</div>", unsafe_allow_html=True)
+            
+            # Show component selector only if Feature Extraction is selected
+            if analysis_method == "Feature Extraction":
                 component_options = [2, 3, 4, 5]
                 n_components = st.selectbox(
                     "Components",
                     options=component_options,
                     index=component_options.index(st.session_state.n_components) if hasattr(st.session_state, 'n_components') and st.session_state.n_components in component_options else 0,
                     label_visibility="collapsed",
-                    key="components_selector",  # Add explicit key to avoid conflicts
-                    help="Number of components for dimensionality reduction. 2-3 components visualize well, more components can capture more complex relationships."
+                    key="components_selector"  # Add explicit key to avoid conflicts
                 )
                 # Store the components value
                 st.session_state.n_components = n_components
-        else:
-            # When Matrix Profile is selected, create an empty placeholder to maintain layout
-            with components_container:
-                # Need to render something hidden to maintain layout
-                st.markdown('<div style="display:none;">placeholder</div>', unsafe_allow_html=True)
+            else:
+                # When Matrix Profile is selected, create an empty placeholder to maintain layout
+                st.markdown('<div style="height:34px;"></div>', unsafe_allow_html=True)
                 
-    # Add market regime filtering controls
-    regime_filter_cols = st.columns(3)
+    # Add CSS for checkbox alignment
+    st.markdown("""
+    <style>
+    /* Reduce vertical space between elements */
+    div.element-container {
+        margin-bottom: 0.2rem !important;
+    }
     
-    with regime_filter_cols[0]:
-        st.markdown("**Market Regime Filtering**")
+    /* Align checkbox labels in a row */
+    .stCheckbox, .stRadio {
+        display: inline-block !important;
+        margin-right: 10px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Fix checkbox vertical alignment */
+    .stCheckbox > div:first-child, .stRadio > div:first-child {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Remove extra space around markdown title */
+    [data-testid="stMarkdownContainer"] {
+        margin-bottom: 0 !important;
+    }
+    
+    /* Fix radio button layout */
+    .stRadio > div > div {
+        flex-direction: row !important;
+        gap: 10px !important;
+    }
+    
+    /* Ensure radio button labels are aligned */
+    .stRadio > div > div > label {
+        display: flex !important;
+        align-items: center !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Add a small space before the checkbox row
+    st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+    
+    # Create a single row for all checkboxes side by side
+    checkbox_cols = st.columns([1, 1, 1, 1])
+    
+    # Market Regime Filtering
+    with checkbox_cols[0]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>Market Regime Filtering</div>", unsafe_allow_html=True)
         use_regime_filter = st.checkbox(
-            "Filter by Market Regime",
+            "Enable",
             value=st.session_state.get('use_regime_filter', False),
             help="Filter matches to show only those from similar market regimes as the source pattern"
         )
         st.session_state.use_regime_filter = use_regime_filter
     
-    with regime_filter_cols[1]:
+    # Regime Match Strictness
+    with checkbox_cols[1]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>Regime Match Strictness</div>", unsafe_allow_html=True)
         regime_tolerance = st.radio(
-            "Regime Match Strictness",
+            "Strictness",
             options=["Exact Match", "Similar Regimes"],
             index=st.session_state.get('regime_tolerance', 0),
             disabled=not use_regime_filter,
             horizontal=True,
-            help="Exact match shows only patterns from the same regime. Similar regimes includes adjacent regimes."
+            help="Exact match shows only patterns from the same regime. Similar regimes includes adjacent regimes.",
+            label_visibility="collapsed"
         )
         # Convert UI selection to numeric value
         st.session_state.regime_tolerance = 0 if regime_tolerance == "Exact Match" else 1
     
-    with regime_filter_cols[2]:
+    # Include Neutral Regime
+    with checkbox_cols[2]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>Include Neutral Regime</div>", unsafe_allow_html=True)
         include_neutral = st.checkbox(
-            "Include Neutral Regime Matches",
+            "Include",
             value=st.session_state.get('include_neutral', True),
             disabled=not use_regime_filter,
             help="Always include patterns from the neutral market regime regardless of the source pattern's regime"
         )
         st.session_state.include_neutral = include_neutral
-        
-    # Add weighted prediction option
-    weighted_prediction_col = st.columns(3)
-    with weighted_prediction_col[0]:
-        st.markdown("**Prediction Method**")
+    
+    # Prediction Method
+    with checkbox_cols[3]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>AVG Prediction Line</div>", unsafe_allow_html=True)
         use_weighted = st.checkbox(
-            "Use Weighted Prediction",
+            "Weighted",
             value=st.session_state.get('use_weighted', False),
             help="Better matches (lower scores) have higher influence on the prediction line"
         )
         st.session_state.use_weighted = use_weighted
+        
+    # Add regime parameters when regime filtering is enabled
+    if use_regime_filter:
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        regime_param_cols = st.columns([1, 1, 2, 2])
+        
+        # Trend Threshold input (Bull/Bear percentage)
+        with regime_param_cols[0]:
+            # Trend Threshold title with help icon directly next to it
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Trend Threshold <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Threshold for price change to be considered bullish/bearish (as decimal, e.g., 0.03 = 3%)")
+            
+            trend_threshold_str = st.text_input(
+                "Trend Threshold",
+                value=str(st.session_state.get('trend_threshold', 0.03)),
+                label_visibility="collapsed",
+                key="trend_threshold_input"
+            )
+            
+            # Validate input and convert to float
+            try:
+                trend_threshold = float(trend_threshold_str)
+                trend_threshold = min(max(trend_threshold, 0.001), 0.20)  # Clamp within range
+                st.session_state.trend_threshold = trend_threshold
+            except ValueError:
+                trend_threshold = st.session_state.get('trend_threshold', 0.03)  # Fall back to default
+                
+            # Show range info
+            st.caption("Range: 0.001-0.20")
+            
+        # Efficiency Threshold input (Trendy/Volatile threshold)
+        with regime_param_cols[1]:
+            # Efficiency Threshold title with help icon directly next to it
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Efficiency Threshold <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Threshold for efficiency ratio to determine if price movement is trendy or volatile (0-1)")
+            
+            efficiency_threshold_str = st.text_input(
+                "Efficiency Threshold",
+                value=str(st.session_state.get('efficiency_threshold', 0.5)),
+                label_visibility="collapsed",
+                key="efficiency_threshold_input"
+            )
+            
+            # Validate input and convert to float
+            try:
+                efficiency_threshold = float(efficiency_threshold_str)
+                efficiency_threshold = min(max(efficiency_threshold, 0.1), 0.9)  # Clamp within range
+                st.session_state.efficiency_threshold = efficiency_threshold
+            except ValueError:
+                efficiency_threshold = st.session_state.get('efficiency_threshold', 0.5)  # Fall back to default
+                
+            # Show range info
+            st.caption("Range: 0.1-0.9")
+        
+    # Add a small space after the checkbox row
+    st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
     
     # Create an info button that expands to show the text
     if analysis_method == "Matrix Profile":
@@ -2071,18 +2377,44 @@ if st.session_state.btc_data is not None:
         background-color: var(--button-bg) !important;
         border-color: var(--button-border) !important;
         border-radius: 4px !important;
+        border-width: 1px !important;
         color: var(--text-color) !important;
         font-family: var(--font-family) !important;
         /* Match button padding exactly */
         padding: 0.375rem 0.75rem !important;
         line-height: 1 !important;
-        height: auto !important;
+        height: 2rem !important;
         min-height: 0 !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
     }
     
     .streamlit-expanderHeader:hover {
         background-color: var(--button-hover-bg) !important;
         border-color: var(--button-hover-border) !important;
+    }
+    
+    /* Style the expander content area */
+    .streamlit-expanderContent {
+        background-color: var(--dropdown-bg) !important;
+        border-color: var(--button-border) !important;
+        border-width: 1px !important;
+        border-top: none !important;
+        padding: 10px !important;
+    }
+    
+    /* Style the arrow icon in the expander */
+    .streamlit-expanderHeader svg {
+        color: var(--text-color) !important;
+        fill: var(--text-color) !important;
+        margin-right: 0.5rem !important;
+    }
+    
+    /* Style the content text inside the expander */
+    .streamlit-expanderContent p {
+        color: var(--text-color) !important;
+        margin-bottom: 5px !important;
     }
     
     /* Fix the text inside the button */
@@ -2140,17 +2472,26 @@ if st.session_state.btc_data is not None:
     # st.markdown("<div style='height: 5px'></div>", unsafe_allow_html=True)
     
     with pattern_search_cols[0]:
-        # Create a simple slider with a proper label
         st.markdown("**Maximum Matches**")
-        max_matches = st.slider(
-            "Maximum Matches",  # Provide a non-empty label to avoid warnings
-            min_value=10,
-            max_value=300,
-            value=current_max_matches,
-            step=5,
-            label_visibility="collapsed",  # Hide the label since we show it with markdown
-            help="Set the maximum number of patterns to find. Higher values will find more patterns but may take longer to process."
+        
+        # Text input with min/max validation
+        max_matches_str = st.text_input(
+            "Maximum Matches",
+            value=str(current_max_matches),
+            label_visibility="collapsed",
+            help="Set the maximum number of patterns to find (10-300). Higher values will find more patterns but may take longer to process.",
+            key="max_matches_input"
         )
+        
+        # Validate input and convert to int
+        try:
+            max_matches = int(max_matches_str)
+            max_matches = min(max(max_matches, 10), 300)  # Clamp within range
+        except ValueError:
+            max_matches = current_max_matches  # Fall back to current value on invalid input
+                
+        # Show range info
+        st.caption("Range: 10-300")
     
     # For the second column, make a global decision whether to show multiplier or not
     # This needs to be before the column definition
@@ -2165,17 +2506,27 @@ if st.session_state.btc_data is not None:
         if show_multiplier:
             # Only create the UI elements for Matrix Profile
             st.markdown("<strong>Filter (score multiplier)</strong>", unsafe_allow_html=True)
-            multiplier = st.slider(
+            
+            # Text input with min/max validation
+            multiplier_str = st.text_input(
                 "Filter Score Multiplier",
-                min_value=1.0,
-                max_value=3.0,
-                value=current_multiplier,
-                step=0.1,
-                format="%.1fx",
+                value=str(current_multiplier),
                 label_visibility="collapsed",
-                key="filter_slider",
-                help="Filter out patterns with scores above this multiplier of the best match score. Lower values = more similar patterns only."
+                help="Filter out patterns with scores above this multiplier (1.0-3.0) of the best match score. Lower values = more similar patterns only.",
+                key="filter_score_input"
             )
+            
+            # Validate input and convert to float
+            try:
+                multiplier = float(multiplier_str)
+                multiplier = min(max(multiplier, 1.0), 3.0)  # Clamp within range
+                # Format to one decimal place for display
+                multiplier = round(multiplier * 10) / 10
+            except ValueError:
+                multiplier = current_multiplier  # Fall back to current value on invalid input
+                
+            # Show range info
+            st.caption("Range: 1.0-3.0x")
         else:
             # For Feature Extraction - just create an empty placeholder to maintain layout
             # but don't create any UI controls that could appear temporarily
@@ -2252,7 +2603,9 @@ if st.session_state.btc_data is not None:
                                 search_end=st.session_state.search_range['end_date'],
                                 use_regime_filter=st.session_state.use_regime_filter,
                                 regime_tolerance=st.session_state.regime_tolerance,
-                                include_neutral=st.session_state.include_neutral
+                                include_neutral=st.session_state.include_neutral,
+                                trend_threshold=st.session_state.get('trend_threshold', 0.03),
+                                efficiency_threshold=st.session_state.get('efficiency_threshold', 0.5)
                             )
                         )
                     else:
@@ -2271,7 +2624,9 @@ if st.session_state.btc_data is not None:
                                 n_components=st.session_state.n_components,
                                 use_regime_filter=st.session_state.use_regime_filter,
                                 regime_tolerance=st.session_state.regime_tolerance,
-                                include_neutral=st.session_state.include_neutral
+                                include_neutral=st.session_state.include_neutral,
+                                trend_threshold=st.session_state.get('trend_threshold', 0.03),
+                                efficiency_threshold=st.session_state.get('efficiency_threshold', 0.5)
                             )
                         )
                 
@@ -2438,20 +2793,18 @@ if st.session_state.search_results:
                 
                 # Only analyze if we have enough data after the pattern
                 if len(match_data) > pattern_length:
-                    # Calculate average close price of the pattern part (before the blue line)
-                    pattern_close_prices = match_data.iloc[:pattern_length]['close']
-                    pattern_avg_close = pattern_close_prices.mean()
+                    # Get the last close price of the pattern part (before the blue line)
+                    pattern_last_close = match_data.iloc[pattern_length-1]['close']
                     
-                    # Calculate average close price of the future part (after the blue line)
-                    future_close_prices = match_data.iloc[pattern_length:]['close']
-                    future_avg_close = future_close_prices.mean()
+                    # Get the last close price of the future part (after the blue line)
+                    future_last_close = match_data.iloc[-1]['close']
                     
-                    # Compare average values to see if price level went up or down after pattern
-                    if future_avg_close > pattern_avg_close:
+                    # Compare the last candle's close price to see if price went up or down after pattern
+                    if future_last_close > pattern_last_close:
                         higher_count += 1
-                    elif future_avg_close < pattern_avg_close:
+                    elif future_last_close < pattern_last_close:
                         lower_count += 1
-                    # Equal average prices not counted in either category
+                    # Equal prices not counted in either category
             
             # Display statistics with the total count of matches and filtering info
             if temp_matches and filtered_matches:
@@ -2592,14 +2945,14 @@ if st.session_state.search_results:
                         
                         # Use colored metrics with time information
                         st.metric(
-                            label=f"Average Price Higher {time_label} After Pattern", 
+                            label=f"Final Price Higher {time_label} After Pattern", 
                             value=f"{higher_count} patterns", 
                             delta=f"{higher_pct:.1f}%",
                             delta_color="normal"
                         )
                         
                         st.metric(
-                            label=f"Average Price Lower {time_label} After Pattern", 
+                            label=f"Final Price Lower {time_label} After Pattern", 
                             value=f"{lower_count} patterns", 
                             delta=f"{lower_pct:.1f}%",
                             delta_color="inverse"  # Inverse makes down neutral/up green
@@ -2893,14 +3246,23 @@ if st.session_state.search_results:
                     pct_changes = match_future['pct_changes']
                     match_quality = match_future['distance']  # Lower distance = better match
                     
-                    # Calculate opacity based on match quality (better matches = more opaque)
-                    # Normalize all distances between 0.2 and 0.7 opacity
+                    # Calculate match quality based on distance
+                    # Get all distances for color mapping
                     all_distances = [m['distance'] for m in match_futures]
                     min_dist = min(all_distances)
                     max_dist = max(all_distances)
                     norm_range = max_dist - min_dist if max_dist > min_dist else 1
-                    opacity = 0.7 - 0.5 * ((match_quality - min_dist) / norm_range) if norm_range > 0 else 0.5
-                    opacity = max(0.2, min(0.7, opacity))  # Clamp between 0.2 and 0.7
+                    
+                    # Normalize the match quality to a 0-1 range (0 = best, 1 = worst)
+                    normalized_quality = (match_quality - min_dist) / norm_range if norm_range > 0 else 0.5
+                    
+                    # Create a color gradient from light to dark gray based on match quality
+                    # Very light gray (235) for best matches, dark gray (50) for worst matches
+                    # Use a smooth gradient between them
+                    gray_level = int(235 - normalized_quality * 185)
+                    
+                    # Set opacity (always visible but slightly transparent)
+                    opacity = 0.65
                     
                     # Convert to numpy array for easier handling
                     pct_array = np.array(pct_changes)
@@ -2917,30 +3279,18 @@ if st.session_state.search_results:
                     # Get up to the target number of projection times
                     times_for_match = projection_times[:data_points]
                     
-                    # Add line for this match with hover highlighting and varying appearance based on match quality
-                    # Create varied gray shades to help visually distinguish different lines
-                    # We'll use a more sophisticated approach to create visually distinct lines:
-                    # 1. Vary the base gray shade (70-115) to create different brightness 
-                    # 2. Add slight hue variations by making the channels slightly different
-                    base_gray = 70 + (i % 6) * 9  # Values from 70-115 for different shades
+                    # Create the line color based on match quality
+                    # Simple gray scale - light gray for good matches, dark for poor matches
+                    line_color = f'rgba({gray_level}, {gray_level}, {gray_level}, {opacity})'
                     
-                    # Add subtle color variation for even better distinction
-                    r_offset = (i % 3) * 5
-                    g_offset = ((i+1) % 3) * 5
-                    b_offset = ((i+2) % 3) * 5
-                    
-                    r = base_gray + r_offset
-                    g = base_gray + g_offset
-                    b = base_gray + b_offset
-                    
-                    # Add line for this match with varying opacity based on match quality
+                    # Add line for this match with coloring based on quality
                     pred_fig.add_trace(
                         go.Scatter(
                             x=[reference_time] + times_for_match,
                             y=[reference_price] + future_prices[:data_points],
                             mode='lines',
                             line=dict(
-                                color=f'rgba({r}, {g}, {b}, {opacity})',
+                                color=line_color,
                                 width=1.5
                             ),
                             name=f"Match #{i+1}",
@@ -3409,15 +3759,52 @@ if st.session_state.search_results:
                     showspikes=False
                 )
                 
-                # Update statistics - use average (mean) for all stats
-                stats = {
-                    'num_matches': len(match_futures),
-                    'avg_min': np.mean(min_pct_changes) if min_pct_changes else 0,
-                    'avg_max': np.mean(max_pct_changes) if max_pct_changes else 0,
-                    'avg_final': np.mean(final_pct_changes) if final_pct_changes else 0,
-                    'has_actual_data': has_actual_data,
-                    'actual_final_pct': final_actual_pct if has_actual_data else None
-                }
+                # Update statistics - use weighted average if use_weighted is True
+                if use_weighted and match_futures:
+                    # Extract match scores and calculate weights (same as for the prediction line)
+                    match_scores = [m['distance'] for m in match_futures]
+                    max_score = max(match_scores)
+                    min_score = min(match_scores)
+                    
+                    # Ensure we don't divide by zero
+                    score_range = max_score - min_score
+                    if score_range == 0:
+                        # Equal weights if all scores are the same
+                        weights = [1.0 for _ in match_scores]
+                    else:
+                        # Calculate inverse weights (lower score = better match = higher weight)
+                        weights = [(max_score - score) / score_range for score in match_scores]
+                        
+                        # Apply quadratic weighting to emphasize better matches more
+                        weights = [w**2 for w in weights]
+                        
+                        # Normalize weights to sum to 1
+                        sum_weights = sum(weights)
+                        weights = [w / sum_weights for w in weights]
+                    
+                    # Calculate weighted statistics
+                    weighted_min = sum(min_pct * weight for min_pct, weight in zip(min_pct_changes, weights)) if min_pct_changes else 0
+                    weighted_max = sum(max_pct * weight for max_pct, weight in zip(max_pct_changes, weights)) if max_pct_changes else 0
+                    weighted_final = sum(final_pct * weight for final_pct, weight in zip(final_pct_changes, weights)) if final_pct_changes else 0
+                    
+                    stats = {
+                        'num_matches': len(match_futures),
+                        'avg_min': weighted_min,
+                        'avg_max': weighted_max,
+                        'avg_final': weighted_final,
+                        'has_actual_data': has_actual_data,
+                        'actual_final_pct': final_actual_pct if has_actual_data else None
+                    }
+                else:
+                    # Use simple average (mean) for all stats when not using weighted mode
+                    stats = {
+                        'num_matches': len(match_futures),
+                        'avg_min': np.mean(min_pct_changes) if min_pct_changes else 0,
+                        'avg_max': np.mean(max_pct_changes) if max_pct_changes else 0,
+                        'avg_final': np.mean(final_pct_changes) if final_pct_changes else 0,
+                        'has_actual_data': has_actual_data,
+                        'actual_final_pct': final_actual_pct if has_actual_data else None
+                    }
                 
                 return pred_fig, stats
             
@@ -3443,7 +3830,9 @@ if st.session_state.search_results:
                     # Let's use the same approach as the Match titles - no divs or custom CSS
                     # This simpler approach will ensure spacing is identical to match titles
                     # Add indication if actual data is shown
-                    title_text = f"**Prediction: Pattern Outcomes** (Based on {stats['num_matches']} matches - Avg Min: {stats['avg_min']:.2f}% | Avg Max: {stats['avg_max']:.2f}% | Avg Final: {stats['avg_final']:.2f}%)"
+                    # Add 'Weighted' to the title when weighted prediction is used
+                    stat_prefix = "Weighted" if use_weighted else "Avg"
+                    title_text = f"**Prediction: Pattern Outcomes** (Based on {stats['num_matches']} matches - {stat_prefix} Min: {stats['avg_min']:.2f}% | {stat_prefix} Max: {stats['avg_max']:.2f}% | {stat_prefix} Final: {stats['avg_final']:.2f}%)"
                     
                     # If we have actual data, add it to the title - keep it in the standard text color
                     if stats.get('has_actual_data', False) and stats.get('actual_final_pct') is not None:
@@ -3779,45 +4168,44 @@ if st.session_state.search_results:
                 
                 return fig
             
-            # Precompute the median price comparison for each match
-            match_median_results = {}
+            # Precompute the final price comparison for each match
+            match_final_results = {}
             for match_idx, match in enumerate(filtered_matches):
                 match_data = pd.DataFrame(match["pattern_data"])
                 
                 # Only analyze if we have enough data after the pattern
                 if len(match_data) > pattern_length:
-                    # Calculate median close price of the pattern part (before the blue line)
-                    pattern_close_prices = match_data.iloc[:pattern_length]['close']
-                    pattern_median_close = pattern_close_prices.median()
+                    # Get the last close price of the pattern part (before the blue line)
+                    pattern_last_close = match_data.iloc[pattern_length-1]['close']
                     
-                    # Calculate median close price of the future part (after the blue line)
-                    future_close_prices = match_data.iloc[pattern_length:]['close']
-                    future_median_close = future_close_prices.median()
+                    # Get the last close price of the future part (after the blue line)
+                    future_last_close = match_data.iloc[-1]['close']
                     
                     # Store comparison result for this match
-                    if future_median_close > pattern_median_close:
-                        match_median_results[match_idx] = "Higher"
-                    elif future_median_close < pattern_median_close:
-                        match_median_results[match_idx] = "Lower"
+                    if future_last_close > pattern_last_close:
+                        match_final_results[match_idx] = "Higher"
+                    elif future_last_close < pattern_last_close:
+                        match_final_results[match_idx] = "Lower"
                     else:
-                        match_median_results[match_idx] = "Unchanged"
+                        match_final_results[match_idx] = "Unchanged"
                 else:
-                    match_median_results[match_idx] = "N/A"  # Not enough future data
+                    match_final_results[match_idx] = "N/A"  # Not enough future data
             
             # Show all matches directly
             for i, match in enumerate(filtered_matches):
-                # Get the median comparison result for this match
-                median_result = match_median_results.get(i, "N/A")
+                # Get the final price comparison result for this match
+                final_result = match_final_results.get(i, "N/A")
                 
                 # Style the result with color
-                if median_result == "Higher":
-                    median_result_styled = f"<span style='color:#4CAF50'>Higher</span>"  # Green
-                elif median_result == "Lower":
-                    median_result_styled = f"<span style='color:#F44336'>Lower</span>"   # Red
+                if final_result == "Higher":
+                    final_result_styled = f"<span style='color:#4CAF50'>Higher</span>"  # Green
+                elif final_result == "Lower":
+                    final_result_styled = f"<span style='color:#F44336'>Lower</span>"   # Red
                 else:
-                    median_result_styled = f"<span style='color:#999999'>{median_result}</span>"  # Grey
+                    final_result_styled = f"<span style='color:#999999'>{final_result}</span>"  # Grey
                 
                 # Create columns for match header - title on left, button on right
+                st.markdown('<div class="match_header_cols">', unsafe_allow_html=True)
                 match_header_cols = st.columns([0.85, 0.15])
                 
                 # Header with match info, regime and median comparison 
@@ -3842,7 +4230,7 @@ if st.session_state.search_results:
                 with match_header_cols[0]:
                     st.markdown(
                         f"**Match #{i+1}**: {datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')} "
-                        f"({score_label}: {match['distance']:.4f}). Regime: {regime_styled}. Past/future avg: {median_result_styled}", 
+                        f"({score_label}: {match['distance']:.4f}). Regime: {regime_styled}. Final price: {final_result_styled}", 
                         unsafe_allow_html=True
                     )
                 
@@ -3852,10 +4240,16 @@ if st.session_state.search_results:
                     if f"expand_state_{i}" not in st.session_state:
                         st.session_state[f"expand_state_{i}"] = False
                     
+                    # No need for per-button custom CSS anymore
+                    
                     # Button to toggle expanded view
-                    if st.button("Expand View", key=f"expand_button_{i}"):
+                    button_label = "Collapse" if st.session_state[f"expand_state_{i}"] else "Expand"
+                    if st.button(button_label, key=f"expand_button_{i}", type="secondary"):
                         # Toggle the expanded state for this match
                         st.session_state[f"expand_state_{i}"] = not st.session_state[f"expand_state_{i}"]
+                
+                # Close the match header div
+                st.markdown('</div>', unsafe_allow_html=True)
                 
                 # Create individual figure for this match
                 match_fig = go.Figure()
