@@ -39,18 +39,6 @@ class PriceFeatureExtractor:
         # Create a copy to avoid modifying the original
         price_data = ohlc_df[['open', 'high', 'low', 'close']].copy()
         
-        # Create a normalized version of the price data for shape-focused features
-        norm_price_data = price_data.copy()
-        
-        # Scale by the range of the entire pattern to normalize for shape matching
-        price_range = norm_price_data['high'].max() - norm_price_data['low'].min()
-        if price_range > 0:  # Avoid division by zero
-            baseline = norm_price_data['low'].min()
-            norm_price_data['open'] = (norm_price_data['open'] - baseline) / price_range
-            norm_price_data['high'] = (norm_price_data['high'] - baseline) / price_range
-            norm_price_data['low'] = (norm_price_data['low'] - baseline) / price_range
-            norm_price_data['close'] = (norm_price_data['close'] - baseline) / price_range
-            
         # Calculate returns and price relationships
         price_data['returns'] = np.log(price_data['close'] / price_data['close'].shift(1))
         price_data['high_low_range'] = price_data['high'] - price_data['low']
@@ -61,17 +49,6 @@ class PriceFeatureExtractor:
         price_data['lower_shadow'] = price_data.apply(
             lambda x: min(x['open'], x['close']) - x['low'], axis=1
         )
-        
-        # Add body position features (where is the body within the range)
-        price_data['body_position'] = (price_data['close'] + price_data['open']) / 2 - price_data['low']
-        price_data['body_position_rel'] = np.where(
-            price_data['high_low_range'] > 0,
-            price_data['body_position'] / price_data['high_low_range'],
-            0.5  # Default to middle if there's no range
-        )
-        
-        # Add body direction (bullish/bearish)
-        price_data['body_direction'] = np.sign(price_data['close'] - price_data['open'])
         
         # Drop NaN values from returns calculation
         price_data = price_data.dropna()
@@ -122,37 +99,6 @@ class PriceFeatureExtractor:
                 features['avg_body_ratio'] = 0
                 features['upper_shadow_ratio'] = 0
                 features['lower_shadow_ratio'] = 0
-                
-            # Consistency features - how consistent are the candle visual properties
-            if len(price_data) > 1:
-                # Body size consistency
-                if price_data['body_size'].mean() > 0:
-                    features['body_size_consistency'] = price_data['body_size'].std() / price_data['body_size'].mean()
-                else:
-                    features['body_size_consistency'] = 0
-                
-                # Upper/lower shadow consistency
-                if price_data['upper_shadow'].mean() > 0:
-                    features['upper_shadow_consistency'] = price_data['upper_shadow'].std() / price_data['upper_shadow'].mean()
-                else:
-                    features['upper_shadow_consistency'] = 0
-                    
-                if price_data['lower_shadow'].mean() > 0:
-                    features['lower_shadow_consistency'] = price_data['lower_shadow'].std() / price_data['lower_shadow'].mean()
-                else:
-                    features['lower_shadow_consistency'] = 0
-                
-                # Body direction consistency - measures if candles are consistently bullish/bearish
-                features['direction_consistency'] = abs(price_data['body_direction'].sum()) / len(price_data)
-                
-                # Body position consistency - where bodies appear within the candle ranges
-                features['body_position_consistency'] = price_data['body_position_rel'].std()
-            else:
-                features['body_size_consistency'] = 0
-                features['upper_shadow_consistency'] = 0
-                features['lower_shadow_consistency'] = 0
-                features['direction_consistency'] = 0
-                features['body_position_consistency'] = 0
             
             # Statistical features for returns - safely handle empty dataframes
             for col in ['returns', 'high_low_range', 'body_size', 'momentum_1', 'velocity', 'acceleration']:
@@ -180,50 +126,6 @@ class PriceFeatureExtractor:
                         features[f'autocorr_{lag}'] = 0
                 except:
                     features[f'autocorr_{lag}'] = 0
-                    
-            # Capture relationships between OHLC components using normalized data
-            if len(norm_price_data) > 1:
-                # Correlations between price components 
-                features['open_close_correlation'] = norm_price_data['open'].corr(norm_price_data['close'])
-                features['high_low_correlation'] = norm_price_data['high'].corr(norm_price_data['low'])
-                
-                # Pattern shape features with polynomial fit on normalized data
-                x = np.arange(len(norm_price_data))
-                try:
-                    # Quadratic fit to capture overall curve shape
-                    close_fit = np.polyfit(x, norm_price_data['close'], 2)
-                    features['close_shape_a'] = close_fit[0]  # Quadratic coefficient (curvature)
-                    features['close_shape_b'] = close_fit[1]  # Linear coefficient (slope)
-                    features['close_shape_c'] = close_fit[2]  # Constant term
-                    
-                    # Also fit high and low to capture range dynamics
-                    high_fit = np.polyfit(x, norm_price_data['high'], 2)
-                    features['high_shape_a'] = high_fit[0]
-                    
-                    low_fit = np.polyfit(x, norm_price_data['low'], 2)
-                    features['low_shape_a'] = low_fit[0]
-                    
-                    # Range expansion/contraction
-                    range_data = norm_price_data['high'] - norm_price_data['low']
-                    range_fit = np.polyfit(x, range_data, 1)
-                    features['range_trend'] = range_fit[0]  # Positive means expanding range
-                    
-                except:
-                    features['close_shape_a'] = 0
-                    features['close_shape_b'] = 0
-                    features['close_shape_c'] = 0
-                    features['high_shape_a'] = 0
-                    features['low_shape_a'] = 0
-                    features['range_trend'] = 0
-            else:
-                features['open_close_correlation'] = 0
-                features['high_low_correlation'] = 0
-                features['close_shape_a'] = 0
-                features['close_shape_b'] = 0
-                features['close_shape_c'] = 0
-                features['high_shape_a'] = 0
-                features['low_shape_a'] = 0
-                features['range_trend'] = 0
         
         except Exception as e:
             print(f"Error calculating features: {str(e)}")

@@ -39,154 +39,10 @@ class BTCPatternFinder:
         "1w": 1/7,      # ~0.14 points per day
     }
     
-    # Nothing needed here - the old regime_window_sizes dictionary has been removed
-    # as we're now using a dynamic pattern-length based approach
-    
     def __init__(self, data_provider):
         self.data_provider = data_provider
         self.feature_extractor = None  # Will be initialized on demand
         
-    def classify_market_regime(
-        self, 
-        prices: pd.Series, 
-        interval: str, 
-        window_multiplier: int = 5,
-        trend_threshold: float = 0.03,
-        efficiency_threshold: float = 0.5
-    ) -> int:
-        """
-        Classify market regime based on price action characteristics using a simplified approach.
-        
-        Returns one of six regimes:
-        1 = Bullish-Trendy
-        2 = Bullish-Volatile
-        3 = Neutral-Trendy
-        4 = Neutral-Volatile
-        5 = Bearish-Trendy
-        6 = Bearish-Volatile
-        
-        Args:
-            prices: Series of price data (typically close prices)
-            interval: Timeframe of the data (not used in new implementation, kept for compatibility)
-            window_multiplier: Multiplier for pattern length to determine lookback window (default: 5)
-            trend_threshold: Threshold for price change to be considered bullish/bearish (default: 3%)
-            efficiency_threshold: Threshold for efficiency ratio to determine trending/volatile (default: 0.5)
-            
-        Returns:
-            int: Regime classification (1-6)
-        """
-        if len(prices) < 4:
-            # Not enough data for reliable classification, default to neutral-trendy
-            return 3
-            
-        try:
-            # Calculate lookback window size based on pattern length
-            pattern_length = len(prices)
-            lookback = min(pattern_length * window_multiplier, len(prices))
-            
-            # If we don't have enough data for the ideal lookback, use what we have
-            lookback = max(pattern_length, lookback)
-            
-            # Get the lookback prices (will be the same as prices if lookback == len(prices))
-            lookback_prices = prices.iloc[-lookback:]
-            
-            # Calculate basic metrics
-            start_price = lookback_prices.iloc[0]
-            end_price = lookback_prices.iloc[-1]
-            
-            # Calculate the price change percentage
-            price_change_pct = (end_price - start_price) / start_price
-            
-            # Calculate the efficiency ratio
-            # |net price change| / sum of absolute price changes
-            price_diffs = lookback_prices.diff().dropna().abs()
-            total_movement = price_diffs.sum()
-            net_movement = abs(end_price - start_price)
-            
-            # Avoid division by zero
-            if total_movement == 0:
-                efficiency_ratio = 1.0  # Perfect efficiency if no movement
-            else:
-                efficiency_ratio = net_movement / total_movement
-            
-            # Determine trend direction
-            if price_change_pct > trend_threshold:
-                trend = "bullish"
-            elif price_change_pct < -trend_threshold:
-                trend = "bearish"
-            else:
-                trend = "neutral"
-                
-            # Determine market characteristic
-            is_trendy = efficiency_ratio >= efficiency_threshold
-            
-            # Classify into one of six regimes
-            if trend == "bullish":
-                if is_trendy:
-                    return 1  # Bullish-Trendy
-                else:
-                    return 2  # Bullish-Volatile
-            elif trend == "bearish":
-                if is_trendy:
-                    return 5  # Bearish-Trendy
-                else:
-                    return 6  # Bearish-Volatile
-            else:  # neutral
-                if is_trendy:
-                    return 3  # Neutral-Trendy
-                else:
-                    return 4  # Neutral-Volatile
-                    
-        except Exception as e:
-            print(f"Error during regime classification: {str(e)}")
-            return 3  # Default to Neutral-Trendy on error
-    
-    def get_regime_name(self, regime_id: int) -> str:
-        """Get the name of a market regime by its ID."""
-        regime_names = {
-            1: "Bullish-Trendy",
-            2: "Bullish-Volatile",
-            3: "Neutral-Trendy",
-            4: "Neutral-Volatile",
-            5: "Bearish-Trendy",
-            6: "Bearish-Volatile"
-        }
-        return regime_names.get(regime_id, "Unknown")
-        
-    def filter_matches_by_regime(
-        self, 
-        matches: List[Dict], 
-        source_regime: int, 
-        tolerance: int = 0,
-        include_neutral: bool = True
-    ) -> List[Dict]:
-        """
-        Filter pattern matches to include only those from similar market regimes.
-        
-        Args:
-            matches: List of pattern match objects
-            source_regime: Regime of the current pattern (1-6)
-            tolerance: 0 means exact regime match only, 1 allows adjacent regimes
-            include_neutral: Whether to always include neutral regime (3) matches
-            
-        Returns:
-            List of matches from similar regimes
-        """
-        filtered_matches = []
-        
-        for match in matches:
-            # Get the match's regime
-            match_regime = match.get('regime', 3)  # Default to neutral if not available
-            
-            # Check if regimes match within tolerance
-            if abs(match_regime - source_regime) <= tolerance:
-                filtered_matches.append(match)
-            # Always include neutral regime matches if requested
-            elif include_neutral and match_regime == 3:
-                filtered_matches.append(match)
-                
-        return filtered_matches
-            
     def _find_similar_pattern(
         self,
         source_prices: Union[list, np.ndarray],
@@ -262,11 +118,6 @@ class BTCPatternFinder:
         search_end_time: str = None,
         source_idx_range: Tuple[int, int] = None,  # Add parameter for source index range (DEPRECATED)
         source_pattern: List[Dict] = None,  # NEW: Explicit source pattern data
-        use_regime_filter: bool = False,  # Whether to filter by market regime
-        regime_tolerance: int = 0,  # How strict to be with regime matching (0=exact, 1=adjacent)
-        include_neutral: bool = True,  # Whether to include neutral regime matches
-        trend_threshold: float = 0.03,  # Threshold for price change to be considered bullish/bearish
-        efficiency_threshold: float = 0.5,  # Threshold for efficiency ratio to determine trending/volatile
     ) -> Dict:
         """
         Find historical patterns similar to a specified time range
@@ -438,23 +289,19 @@ class BTCPatternFinder:
                         
                         # Convert interval to seconds for threshold
                         if interval == "1d":
-                            threshold = 60 * 60 * 24 * 5  # 5 days
+                            threshold = 60 * 60 * 24 * 3  # 3 days
                         elif interval == "1h":
-                            threshold = 60 * 60 * 24 * 2  # 2 days
+                            threshold = 60 * 60 * 5       # 5 hours
                         elif interval == "4h":
-                            threshold = 60 * 60 * 24 * 3.5  # 3.5 days
+                            threshold = 60 * 60 * 10      # 10 hours
                         elif interval == "30m":
-                            threshold = 60 * 30 * 12      # 6 hours
+                            threshold = 60 * 30 * 5       # 2.5 hours
                         elif interval == "15m":
-                            threshold = 60 * 15 * 16      # 4 hours (increased from ~2 hours)
+                            threshold = 60 * 15 * 7       # ~2 hours
                         elif interval == "5m":
-                            threshold = 60 * 5 * 36       # 3 hours (increased from ~1.25 hours)
-                        elif interval == "3m":
-                            threshold = 60 * 3 * 60       # 3 hours
-                        elif interval == "1m":
-                            threshold = 60 * 1 * 180      # 3 hours
+                            threshold = 60 * 5 * 15       # ~1.25 hours
                         else:
-                            threshold = 60 * 60 * 3       # 3 hours default (increased from 2)
+                            threshold = 60 * 60 * 2       # 2 hours default
                             
                         if time_diff < threshold:
                             too_close_to_existing = True
@@ -482,50 +329,21 @@ class BTCPatternFinder:
                     match_start = match_data.iloc[0]["timestamp"]
                     match_end = match_data.iloc[-1]["timestamp"]
                     
-                    # Classify market regime for this match
-                    match_regime = self.classify_market_regime(
-                        match_data["close"], 
-                        interval,
-                        trend_threshold=trend_threshold,
-                        efficiency_threshold=efficiency_threshold
-                    )
-                    
                     match_results.append({
                         "distance": float(match_dist),
                         "start_time": datetime.fromtimestamp(match_start / 1000).isoformat(),
                         "end_time": datetime.fromtimestamp(match_end / 1000).isoformat(),
                         "timestamp": int(match_start),
                         "pattern_data": match_data[["timestamp", "open", "high", "low", "close", "volume"]].to_dict("records"),
-                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}",
-                        "regime": match_regime,
-                        "regime_name": self.get_regime_name(match_regime)
+                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}"
                     })
                 
         # Sort by distance (similarity)
         sorted_results = sorted(match_results, key=lambda x: x["distance"])
         
-        # Classify market regime for source pattern
-        source_regime = self.classify_market_regime(
-            source_ohlcv["close"], 
-            interval,
-            trend_threshold=trend_threshold,
-            efficiency_threshold=efficiency_threshold
-        )
-        source_regime_name = self.get_regime_name(source_regime)
-        
-        # Apply regime filtering if requested
-        regime_filtered_results = sorted_results
-        if use_regime_filter:
-            regime_filtered_results = self.filter_matches_by_regime(
-                sorted_results, 
-                source_regime, 
-                tolerance=regime_tolerance,
-                include_neutral=include_neutral
-            )
-            print(f"Regime filtering: {len(sorted_results)} matches → {len(regime_filtered_results)} matches")
-        
-        # Apply a limit to the results based on the original max_matches request
-        final_results = regime_filtered_results[:max_matches] if len(regime_filtered_results) > max_matches else regime_filtered_results
+        # Add debugging info to help understand filtering
+        # Also apply a limit to the results based on the original max_matches request
+        final_results = sorted_results[:max_matches] if len(sorted_results) > max_matches else sorted_results
         
         # Store filtered scores (after time proximity filtering) for distribution visualization
         # This will exclude near-duplicates and only show meaningful differences
@@ -541,13 +359,10 @@ class BTCPatternFinder:
             "total_matches": len(final_results),
             "flashback_patterns": final_results,
             "filtered_matches_scores": filtered_raw_scores,  # Include only time-filtered scores for histogram
-            "source_regime": source_regime,
-            "source_regime_name": source_regime_name,
             "debug_info": {
                 "requested_matches": max_matches,
                 "stumpy_matches_found": len(matches) if matches else 0,
                 "unique_matches": len(sorted_results),  # Matches after time-proximity filtering
-                "regime_filtered_matches": len(regime_filtered_results) if use_regime_filter else None,
                 "final_matches": len(final_results)
             }
         }
@@ -612,11 +427,6 @@ class BTCPatternFinder:
         source_idx_range: Tuple[int, int] = None,
         source_pattern: List[Dict] = None,
         n_components: int = 2,
-        use_regime_filter: bool = False,  # Whether to filter by market regime
-        regime_tolerance: int = 0,  # How strict to be with regime matching (0=exact, 1=adjacent)
-        include_neutral: bool = True,  # Whether to include neutral regime matches
-        trend_threshold: float = 0.03,  # Threshold for price change to be considered bullish/bearish
-        efficiency_threshold: float = 0.5,  # Threshold for efficiency ratio to determine trending/volatile
     ) -> Dict:
         """
         Find historical patterns similar to a specified time range using feature extraction
@@ -792,23 +602,19 @@ class BTCPatternFinder:
                         
                         # Convert interval to seconds for threshold
                         if interval == "1d":
-                            threshold = 60 * 60 * 24 * 5  # 5 days
+                            threshold = 60 * 60 * 24 * 3  # 3 days
                         elif interval == "1h":
-                            threshold = 60 * 60 * 24 * 2  # 2 days
+                            threshold = 60 * 60 * 5       # 5 hours
                         elif interval == "4h":
-                            threshold = 60 * 60 * 24 * 3.5  # 3.5 days
+                            threshold = 60 * 60 * 10      # 10 hours
                         elif interval == "30m":
-                            threshold = 60 * 30 * 12      # 6 hours
+                            threshold = 60 * 30 * 5       # 2.5 hours
                         elif interval == "15m":
-                            threshold = 60 * 15 * 16      # 4 hours (increased from ~2 hours)
+                            threshold = 60 * 15 * 7       # ~2 hours
                         elif interval == "5m":
-                            threshold = 60 * 5 * 36       # 3 hours (increased from ~1.25 hours)
-                        elif interval == "3m":
-                            threshold = 60 * 3 * 60       # 3 hours
-                        elif interval == "1m":
-                            threshold = 60 * 1 * 180      # 3 hours
+                            threshold = 60 * 5 * 15       # ~1.25 hours
                         else:
-                            threshold = 60 * 60 * 3       # 3 hours default (increased from 2)
+                            threshold = 60 * 60 * 2       # 2 hours default
                             
                         if time_diff < threshold:
                             too_close_to_existing = True
@@ -833,53 +639,20 @@ class BTCPatternFinder:
                     match_start = match_data.iloc[0]["timestamp"]
                     match_end = match_data.iloc[-1]["timestamp"]
                     
-                    # Classify market regime for this match
-                    match_regime = self.classify_market_regime(
-                        match_data["close"], 
-                        interval,
-                        trend_threshold=trend_threshold,
-                        efficiency_threshold=efficiency_threshold
-                    )
-                    
                     match_results.append({
                         "distance": float(match_dist),
                         "start_time": datetime.fromtimestamp(match_start / 1000).isoformat(),
                         "end_time": datetime.fromtimestamp(match_end / 1000).isoformat(),
                         "timestamp": int(match_start),
                         "pattern_data": match_data[["timestamp", "open", "high", "low", "close", "volume"]].to_dict("records"),
-                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}",
-                        "regime": match_regime,
-                        "regime_name": self.get_regime_name(match_regime)
+                        "label": f"{symbol} from {match_datetime.strftime('%Y-%m-%d %H:%M')}"
                     })
         
         # Sort by distance
         sorted_results = sorted(match_results, key=lambda x: x["distance"])
         
-        # Classify market regime for source pattern
-        source_regime = self.classify_market_regime(
-            source_ohlcv["close"], 
-            interval,
-            trend_threshold=trend_threshold,
-            efficiency_threshold=efficiency_threshold
-        )
-        source_regime_name = self.get_regime_name(source_regime)
-        
-        # Apply regime filtering if requested
-        regime_filtered_results = sorted_results
-        if use_regime_filter:
-            regime_filtered_results = self.filter_matches_by_regime(
-                sorted_results, 
-                source_regime, 
-                tolerance=regime_tolerance,
-                include_neutral=include_neutral
-            )
-            print(f"Regime filtering: {len(sorted_results)} matches → {len(regime_filtered_results)} matches")
-            
-            # Update match indices for visualization if using regime filtering
-            match_indices = [match_indices[sorted_results.index(match)] for match in regime_filtered_results if sorted_results.index(match) < len(match_indices)]
-        
         # Apply max_matches limit
-        final_results = regime_filtered_results[:max_matches] if len(regime_filtered_results) > max_matches else regime_filtered_results
+        final_results = sorted_results[:max_matches] if len(sorted_results) > max_matches else sorted_results
         
         # Store filtered scores for distribution visualization
         filtered_raw_scores = [match['distance'] for match in sorted_results]
@@ -898,13 +671,10 @@ class BTCPatternFinder:
             "filtered_matches_scores": filtered_raw_scores,
             "vis_data": vis_data,
             "match_indices": match_indices,
-            "source_regime": source_regime,
-            "source_regime_name": source_regime_name,
             "debug_info": {
                 "requested_matches": max_matches,
                 "feature_matches_found": len(matches) if matches else 0,
                 "unique_matches": len(sorted_results),
-                "regime_filtered_matches": len(regime_filtered_results) if use_regime_filter else None,
                 "final_matches": len(final_results)
             }
         }
