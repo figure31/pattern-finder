@@ -34,7 +34,25 @@ with open(font_path, 'rb') as font_file:
 # Load custom font and apply clean, modern CSS with chart spacing adjustments
 st.markdown(f"""
 <style>
-    /* Custom Font Loading */
+    /* ===== VARIABLE DEFINITIONS ===== */
+    :root {{
+        --font-family: 'ProtoMono-Light', monospace;
+        --text-color: #cccccc;
+        --header-color: #dddddd;
+        --bg-color: #1e1e1e;
+        --button-bg: #2c2c2c;
+        --button-border: #444444;
+        --button-hover-bg: #3a3a3a;
+        --button-hover-border: #555555;
+        --grid-color: #333333;
+        --label-color: #999999;
+        --highlight-color: #4287f5;
+        --highlight-bg: rgba(66, 135, 245, 0.2);
+        --highlight-selected: rgba(66, 135, 245, 0.3);
+        --dropdown-bg: #222222;
+    }}
+
+    /* ===== FONT DEFINITION ===== */
     @font-face {{
         font-family: 'ProtoMono-Light';
         src: url('data:font/otf;base64,{font_base64}') format('opentype');
@@ -42,77 +60,131 @@ st.markdown(f"""
         font-style: normal;
     }}
     
-    /* Global font settings - use ProtoMono-Light everywhere */
+    /* ===== GLOBAL SETTINGS ===== */
     * {{
-        font-family: 'ProtoMono-Light', monospace !important;
+        font-family: var(--font-family) !important;
     }}
     
-    /* Consistent font size and pale grey text color for better readability */
     body, p, div, span, label, select, input, .element-container {{
         font-size: 1rem !important;
-        color: #cccccc !important;
+        color: var(--text-color) !important;
     }}
     
-    /* Header styles */
-    h1 {{font-size: 1rem !important; color: #dddddd !important;}}
-    h2 {{font-size: 1rem !important; color: #dddddd !important;}}
-    h3 {{font-size: 1rem !important; color: #dddddd !important;}}
-    
-    /* Button styling - lighter buttons than background */
-    .stButton button {{
-        width: 100%;
-        color: #333333 !important;
-        background-color: #2c2c2c !important;
-        border-color: #444444 !important;
+    /* ===== LAYOUT CORE ===== */
+    /* Hide unnecessary UI elements */
+    #MainMenu, footer, header {{
+        display: none;
     }}
     
-    /* Button hover state */
-    .stButton button:hover {{
-        background-color: #3a3a3a !important;
-        border-color: #555555 !important;
-    }}
-    
-    /* Container adjustments with minimal margins and padding */
+    /* Container core structure */
     .main .block-container {{
-        padding: 0.2rem !important; /* Extremely reduced padding */
-        padding-top: 0 !important; /* Remove top padding completely */
-        padding-bottom: 20px !important; /* Reduced bottom padding */
+        padding: 0.2rem !important;
+        padding-top: 0 !important;
+        padding-bottom: 40px !important;
         max-width: 100% !important;
         margin: 0 auto !important;
     }}
     
-    /* Force main container to start at the very top */
     .main {{
         padding-top: 0 !important;
         margin-top: 0 !important;
     }}
     
-    /* Eliminate padding from app container */
     .appview-container {{
         padding-top: 0 !important;
     }}
     
-    #MainMenu {{display: none;}} footer {{display: none;}} header {{display: none;}}
-    .stDateInput {{width: 100%;}}
-    /* Aggressively reduce spacing for headers */
-    h1 {{margin-top: 0.2rem !important; margin-bottom: 0.1rem !important; font-size: 1rem !important;}}
-    h2, h3 {{margin-top: 0.3rem !important; margin-bottom: 0.1rem !important;}}
+    /* Background color consistency */
+    body, .stPlotlyChart, .js-plotly-plot, .plot-container, .element-container, .block-container, .main {{
+        background-color: var(--bg-color) !important;
+    }}
     
-    /* Aggressively reduce spacing for Streamlit elements */
-    .stSelectbox, .stMultiselect {{margin-bottom: 0.3rem !important; margin-top: 0 !important;}}
-    div[data-testid="stVerticalBlock"] > div {{padding-top: 0 !important; padding-bottom: 0 !important; margin-top: 0 !important; margin-bottom: 0 !important;}}
-    .element-container {{margin-top: 0 !important; padding-top: 0 !important; margin-bottom: 0.2rem !important;}}
+    body {{
+        padding-right: 15px !important;
+    }}
     
-    /* Target specific spacing between controls and title */
+    /* ===== TYPOGRAPHY ===== */
+    /* Header styles */
+    h1 {{
+        font-size: 1rem !important; 
+        color: var(--header-color) !important;
+        margin-top: 0.2rem !important; 
+        margin-bottom: 0.1rem !important;
+    }}
+    
+    h2, h3 {{
+        font-size: 1rem !important; 
+        color: var(--header-color) !important;
+        margin-top: 0.3rem !important; 
+        margin-bottom: 0.1rem !important;
+    }}
+    
+    /* Text elements */
+    p, div.markdown-text-container {{
+        margin-bottom: 8px !important;
+        margin-top: 8px !important;
+        padding-left: 5px !important;
+    }}
+    
+    /* ===== STREAMLIT ELEMENT SPACING ===== */
+    /* Element containers - consolidated all element-container styles */
+    .element-container {{
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        margin-bottom: 5px !important;
+        padding-bottom: 0 !important;
+    }}
+    
+    .stSelectbox, .stMultiselect {{
+        margin-bottom: 0.2rem !important; 
+        margin-top: 0 !important;
+    }}
+    
+    div[data-testid="stVerticalBlock"] > div {{
+        padding-top: 0 !important; 
+        padding-bottom: 0 !important; 
+        margin-top: 0 !important; 
+        margin-bottom: 0 !important;
+    }}
+    
     div[data-testid="stHorizontalBlock"] {{
         margin-top: 0 !important;
         padding-top: 0 !important;
         margin-bottom: 0 !important;
         padding-bottom: 0 !important;
     }}
-    .st-emotion-cache-1wmy9hl {{overflow-x: hidden !important;}}
     
-    /* Custom tooltip styling */
+    .st-emotion-cache-1wmy9hl {{
+        overflow-x: hidden !important;
+    }}
+    
+    /* ===== FORM ELEMENTS ===== */
+    /* Date inputs */
+    .stDateInput {{
+        width: 100%;
+    }}
+    
+    /* Text input styling to match select boxes */
+    .stTextInput > div > div > input {{
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
+        border-width: 1px !important;
+        color: var(--text-color) !important;
+    }}
+    
+    .stTextInput > div > div > input:focus {{
+        border-color: var(--button-hover-border) !important;
+        border-width: 1px !important;
+        box-shadow: none !important;
+    }}
+    
+    /* Make sure text input container has the same styling as other widgets */
+    .stTextInput > div {{
+        border: 1px solid var(--button-border) !important;
+        border-radius: 4px !important;
+    }}
+    
+    /* Tooltip styling */
     div[data-testid="stTooltipIcon"] span {{
         background-color: #262730;
         color: white;
@@ -120,142 +192,37 @@ st.markdown(f"""
         border-radius: 0.2rem;
     }}
     
-    /* Target chart containers to reduce vertical spacing */
-    .stPlotlyChart {{
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
+    
+    /* ===== BUTTONS & SELECTORS ===== */
+    /* Button styling - consolidated */
+    .stButton button {{
+        width: 100%;
+        color: #333333 !important;
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
+        height: 2.5rem !important; /* Match text input height */
+        padding: 0px !important;
+        line-height: 1.15 !important;
+        font-size: 0.9rem !important;
     }}
     
-    /* Target the actual Plotly graphs */
-    .js-plotly-plot, .plot-container {{
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
+    .stButton button:hover {{
+        background-color: var(--button-hover-bg) !important;
+        border-color: var(--button-hover-border) !important;
     }}
     
-    /* Drastically reduce whitespace */
-    .element-container {{
-        margin-bottom: 5px !important; /* Reduced from 10px */
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-    }}
-    
-    /* Eliminate colored debug backgrounds and match chart background */
-    body, .stPlotlyChart, .js-plotly-plot, .plot-container, .element-container, .block-container, .main {{
-        background-color: #1e1e1e !important; /* Match the chart background color */
-    }}
-    
-    /* Add spacing around charts with reduced side margins */
-    .stPlotlyChart {{
-        padding: 5px !important;
-        padding-bottom: 20px !important; /* Extra padding at bottom for x-axis labels */
-        padding-right: 8px !important; /* Reduced right padding by 50% */
-        margin-bottom: 15px !important;
-        margin-top: 10px !important;
-        margin-right: 5px !important; /* Reduced right margin by 50% */
-        border: none; /* Remove border entirely */
-        overflow: visible !important; /* Allow content to overflow for axis labels */
-        box-sizing: content-box !important; /* Ensure proper size calculation */
-        max-width: 100% !important; /* Reduced adjustment by 50% */
-    }}
-    
-    /* Make axis labels and ticks consistent */
-    .xtick text, .ytick text {{
-        color: #999999 !important;
-    }}
-    
-    /* Ensure grid lines are visible */
-    .gridlayer path {{
-        stroke: #333333 !important;
-    }}
-    
-    /* Chart spacing and visibility */
-    .stPlotlyChart {{
-        border: none; /* Remove border entirely */
-        padding: 8px;
-        padding-bottom: 20px;
-        margin-bottom: 15px;
-        overflow: visible !important;
-    }}
-    
-    /* Make sure plotly objects appear */
-    .plot-container, .plotly, .js-plotly-plot, .svg-container {{
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }}
-    
-    /* Ensure canvas is visible */
-    canvas, .main-svg {{
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }}
-    
-    /* Remove unwanted subplot titles */
-    .gtitle, .g-gtitle {{
-        display: none !important;
-    }}
-    
-    /* Target text elements between charts */
-    p, div.markdown-text-container {{
-        margin-bottom: 8px !important;
-        margin-top: 8px !important;
-        padding-left: 5px !important;
-    }}
-    
-    /* Add space at the bottom of the page */
-    .main .block-container {{
-        padding-bottom: 40px !important;
-    }}
-    
-    /* Provide a bit more spacing on the right for the scrollbar */
-    body {{
-        padding-right: 15px !important;
-    }}
-    
-    /* Slider styling - leaving default values */
-    
-    /* Highlight select options on hover with light blue */
-    div[data-baseweb="select-option"]:hover {{
-        background-color: rgba(66, 135, 245, 0.2) !important;
-    }}
-    
-    /* Style select boxes to match button styling */
+    /* Select box styling - consolidated */ 
     .stSelectbox [data-baseweb="select"] div, 
     .stMultiselect [data-baseweb="select"] div {{
-        background-color: #2c2c2c !important;
-        border-color: #444444 !important;
-        color: #cccccc !important;
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
+        color: var(--text-color) !important;
     }}
     
     .stSelectbox [data-baseweb="select"] div:hover,
     .stMultiselect [data-baseweb="select"] div:hover {{
-        background-color: #3a3a3a !important;
-        border-color: #555555 !important;
-    }}
-    
-    /* Style dropdown menus to match buttons - more aggressive styling */
-    div[data-baseweb="popover"] div[data-baseweb="menu"],
-    div[data-baseweb="popover"] ul,
-    div[data-baseweb="popover"] {{
-        background-color: #222222 !important;
-        border-color: #444444 !important;
-        color: #cccccc !important;
-    }}
-    
-    div[data-baseweb="select-option"],
-    div[data-baseweb="menu"] div,
-    div[data-baseweb="menu"] li,
-    div[role="option"],
-    li[role="option"] {{
-        background-color: #222222 !important;
-        color: #cccccc !important;
-    }}
-    
-    div[data-baseweb="select-option"]:hover,
-    div[role="option"]:hover,
-    li[role="option"]:hover {{
-        background-color: #3a3a3a !important;
+        background-color: var(--button-hover-bg) !important;
+        border-color: var(--button-hover-border) !important;
     }}
     
     /* Force select dropdown color */
@@ -263,29 +230,48 @@ st.markdown(f"""
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] svg,
     div[data-baseweb="select"] * {{
-        color: #cccccc !important;
-        fill: #cccccc !important;
+        color: var(--text-color) !important;
+        fill: var(--text-color) !important;
     }}
     
-    /* Make dropdown menu items selected state more visible */
+    /* Dropdown menu styling */
+    div[data-baseweb="popover"] div[data-baseweb="menu"],
+    div[data-baseweb="popover"] ul,
+    div[data-baseweb="popover"],
+    div[data-baseweb="select-option"],
+    div[data-baseweb="menu"] div,
+    div[data-baseweb="menu"] li,
+    div[role="option"],
+    li[role="option"] {{
+        background-color: var(--dropdown-bg) !important;
+        border-color: var(--button-border) !important;
+        color: var(--text-color) !important;
+    }}
+    
+    /* Dropdown hover and selection states */
+    div[data-baseweb="select-option"]:hover,
+    div[role="option"]:hover,
+    li[role="option"]:hover {{
+        background-color: var(--button-hover-bg) !important;
+    }}
+    
     div[aria-selected="true"],
     li[aria-selected="true"] {{
-        background-color: rgba(66, 135, 245, 0.3) !important;
+        background-color: var(--highlight-selected) !important;
     }}
     
-    /* Make date selector buttons more compact but preserve font size */
+    /* Date selector sizes */
     div[data-testid="stSelectbox"] {{
         max-width: 85%;
         width: 85%;
     }}
     
-    /* Specific styling for date selector boxes in search period */
     #start_year, #start_month, #start_day, #end_year, #end_month, #end_day {{
-        max-width: 75%;  /* Reduce width by 15% */
+        max-width: 75%;
         width: 75%;
     }}
     
-    /* Ensure font size remains consistent with the rest of the site */
+    /* Selector font sizes */
     div[data-testid="stSelectbox"] span,
     div[data-testid="stSelectbox"] div,
     div[data-baseweb="select"] span, 
@@ -293,14 +279,103 @@ st.markdown(f"""
         font-size: 1rem !important;
     }}
     
-    /* Force the selection boxes to be smaller */
+    /* Selection box sizes */
     div[role="listbox"] {{
         max-width: 90% !important;
     }}
     
-    /* Reduce width of date selectors container */
     div.stSelectbox {{
         max-width: 90% !important;
+    }}
+    
+    /* ===== CHART STYLING ===== */
+    /* Consolidated PlotlyChart styling */
+    .stPlotlyChart {{
+        border: none;
+        padding: 8px;
+        padding-bottom: 20px !important;
+        padding-right: 8px !important;
+        margin-bottom: 15px !important;
+        margin-top: 5px !important; /* Reduced from 10px to 5px to tighten spacing */
+        margin-right: 5px !important;
+        overflow: visible !important;
+        box-sizing: content-box !important;
+        max-width: 100% !important;
+    }}
+    
+    /* Chart elements visibility */
+    .plot-container, .plotly, .js-plotly-plot, .svg-container,
+    canvas, .main-svg {{
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }}
+    
+    /* Chart label styling */
+    .xtick text, .ytick text {{
+        color: var(--label-color) !important;
+    }}
+    
+    .gridlayer path {{
+        stroke: var(--grid-color) !important;
+    }}
+    
+    /* Remove unwanted subplot titles */
+    .gtitle, .g-gtitle {{
+        display: none !important;
+    }}
+    
+    /* ===== MODAL STYLES ===== */
+    .modal-overlay {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.7);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }}
+    
+    .modal-container {{
+        background-color: var(--bg-color);
+        border-radius: 5px;
+        width: 90%;
+        max-width: 1200px;
+        max-height: 90vh;
+        padding: 20px;
+        overflow-y: auto;
+    }}
+    
+    .close-button {{
+        float: right;
+        color: white;
+        cursor: pointer;
+        font-size: 20px;
+        margin-bottom: 15px;
+    }}
+    
+    .match-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }}
+    
+    .match-title {{
+        margin: 0;
+        flex-grow: 1;
+    }}
+    
+    .expand-button {{
+        float: right;
+        margin-left: 15px;
+        color: var(--highlight-color);
+        cursor: pointer;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -351,6 +426,14 @@ if 'feature_method' not in st.session_state:
     
 if 'n_components' not in st.session_state:
     st.session_state.n_components = 2  # Default number of components
+    
+# Initialize expanded view modal state
+if 'show_modal' not in st.session_state:
+    st.session_state.show_modal = False
+    st.session_state.modal_match_id = None
+    st.session_state.modal_match_date = None
+    st.session_state.modal_match_df = None
+    st.session_state.modal_distance = None
 
 # Initialize data provider - don't cache to avoid timeframe mixups
 def get_data_provider():
@@ -756,7 +839,12 @@ async def find_similar_patterns(
     following_points=None,  # Will be dynamically calculated based on pattern length
     search_start=None,      # Optional search range start
     search_end=None,        # Optional search range end
-    source_idx_range=None   # Add parameter for source index range - DEPRECATED
+    source_idx_range=None,  # Add parameter for source index range - DEPRECATED
+    use_regime_filter=False,  # Whether to filter by market regime
+    regime_tolerance=0,      # How strict to be with regime matching (0=exact, 1=adjacent)
+    include_neutral=True,    # Whether to include neutral regime matches
+    trend_threshold=0.03,    # Threshold for price change to be considered bullish/bearish
+    efficiency_threshold=0.5 # Threshold for efficiency ratio to determine trending/volatile
 ):
     """Find similar patterns using the Matrix Profile approach"""
     pattern_finder = get_pattern_finder()
@@ -808,7 +896,12 @@ async def find_similar_patterns(
             max_matches=max_matches,
             following_points=following_points,
             search_start_time=search_start_iso,
-            search_end_time=search_end_iso
+            search_end_time=search_end_iso,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     else:
         # Fall back to timestamp-based method (legacy)
@@ -820,7 +913,12 @@ async def find_similar_patterns(
             max_matches=max_matches,
             following_points=following_points,
             search_start_time=search_start_iso,
-            search_end_time=search_end_iso
+            search_end_time=search_end_iso,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     
     return results
@@ -839,7 +937,12 @@ async def find_similar_patterns_feature_based(
     following_points=None,  # Will be dynamically calculated based on pattern length
     search_start=None,      # Optional search range start
     search_end=None,        # Optional search range end
-    n_components=2          # Number of components for dimensionality reduction
+    n_components=2,         # Number of components for dimensionality reduction
+    use_regime_filter=False,  # Whether to filter by market regime
+    regime_tolerance=0,      # How strict to be with regime matching (0=exact, 1=adjacent)
+    include_neutral=True,    # Whether to include neutral regime matches
+    trend_threshold=0.03,    # Threshold for price change to be considered bullish/bearish
+    efficiency_threshold=0.5 # Threshold for efficiency ratio to determine trending/volatile
 ):
     """Find similar patterns using the Feature Extraction approach"""
     pattern_finder = get_pattern_finder()
@@ -892,7 +995,12 @@ async def find_similar_patterns_feature_based(
             following_points=following_points,
             search_start_time=search_start_iso,
             search_end_time=search_end_iso,
-            n_components=n_components
+            n_components=n_components,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     else:
         # Fall back to timestamp-based method (legacy)
@@ -905,7 +1013,12 @@ async def find_similar_patterns_feature_based(
             following_points=following_points,
             search_start_time=search_start_iso,
             search_end_time=search_end_iso,
-            n_components=n_components
+            n_components=n_components,
+            use_regime_filter=use_regime_filter,
+            regime_tolerance=regime_tolerance,
+            include_neutral=include_neutral,
+            trend_threshold=trend_threshold,
+            efficiency_threshold=efficiency_threshold
         )
     
     return results
@@ -992,11 +1105,11 @@ def plot_match_results(source_pattern, matches, following_points=20, style=None,
                     name=None,  # Removed "Pattern Match" title
                     increasing=dict(
                         line=dict(color='rgba(66, 135, 245, 0.7)'),  # Light blue
-                        fillcolor='rgba(66, 135, 245, 0.5)'          # Light blue with transparency
+                        fillcolor='rgba(66, 135, 245, 0.7)'          # Light blue with transparency
                     ),
                     decreasing=dict(
                         line=dict(color='rgba(26, 86, 196, 0.7)'),   # Darker blue
-                        fillcolor='rgba(26, 86, 196, 0.5)'           # Darker blue with transparency
+                        fillcolor='rgba(26, 86, 196, 0.7)'           # Darker blue with transparency
                     ),
                     hoverinfo="x+y"
                 ),
@@ -1179,6 +1292,7 @@ def plot_match_results(source_pattern, matches, following_points=20, style=None,
 st.markdown(
     """
     <style>
+    /* ===== TITLE LAYOUT ===== */
     /* Custom styles for title row */
     .title-with-selector {
         display: flex;
@@ -1207,6 +1321,7 @@ with col_title:
         <h1 style="margin: 0; padding: 0; font-size: 1rem; margin-bottom: 0.1rem;">
             Pattern Searcher: Time Series Analysis Using Matrix Profiles and High-Dimensional Features Extraction by 
             <a href="https://x.com/figure31_" target="_blank" style="color: #4287f5; text-decoration: none;">Figure31</a>
+            For <a href="https://x.com/standardvoids" target="_blank" style="color: #4287f5; text-decoration: none;">S&V</a>
         </h1>
         """, 
         unsafe_allow_html=True
@@ -1216,6 +1331,7 @@ with col_title:
 st.markdown(
     """
     <style>
+    /* ===== LAYOUT ADJUSTMENTS ===== */
     /* Target the horizontal block with controls to pull it up */
     section[data-testid="stSidebar"] + div > div:nth-child(4) {
         margin-top: -15px !important;
@@ -1229,6 +1345,7 @@ st.markdown(
 st.markdown(
     """
     <style>
+    /* ===== COLUMN ALIGNMENT ===== */
     /* Make all columns consistent in width behavior */
     div[data-testid="column"] {
         padding: 0 !important;
@@ -1242,13 +1359,7 @@ st.markdown(
         max-width: 100% !important;
     }
     
-    /* Override the previous CSS that was targeting specific selectboxes */
-    div[data-testid="stSelectbox"] {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-    
-    /* Remove any existing margin/width constraints set earlier */
+    /* Ensure selectbox width is consistent */
     div.stSelectbox {
         max-width: 100% !important;
         width: 100% !important;
@@ -1710,11 +1821,17 @@ if st.session_state.btc_data is not None:
     prev_values_key = f"prev_slider_values_{interval}"
     if prev_values_key not in st.session_state:
         st.session_state[prev_values_key] = (default_start, default_end)
+        
+    # Store current slider values in session state for consistent access
+    end_slider_key = f"end_slider_{interval}"
+    if end_slider_key not in st.session_state:
+        st.session_state[end_slider_key] = default_end
     
     # Apply custom styling to make the slider more compact
     st.markdown(
         """
         <style>
+        /* ===== SLIDER STYLING ===== */
         /* Make the slider less tall */
         div[data-testid="stSlider"] {
             padding-top: 0 !important;
@@ -1736,17 +1853,136 @@ if st.session_state.btc_data is not None:
         unsafe_allow_html=True
     )
     
-    # Create a unique key for the slider based on the timeframe to ensure full reset when switching
-    slider_key = f"pattern_selection_slider_{interval}"
+    # Create unique keys for the pattern selection based on timeframe
+    start_key = f"pattern_selection_start_{interval}"
+    end_key = f"pattern_selection_end_{interval}"
+
+    # Create columns for the inputs and buttons - equal width for consistent sizing
+    pattern_cols = st.columns([3, 1, 1, 3, 1, 1])
+
+    # Start index section with title
+    with pattern_cols[0]:
+        st.markdown("**Start Index**")
+
+    # Empty column for alignment
+    with pattern_cols[1]:
+        st.write("")
+
+    # Empty column for alignment
+    with pattern_cols[2]:
+        st.write("")
     
-    # Create the slider that will update automatically
-    start_slider, end_slider = st.select_slider(
-        "Pattern Selection",  # Proper non-empty label
-        options=list(range(len(df))),
-        value=(default_start, default_end),
-        label_visibility="collapsed",  # Hide the label but it's there for accessibility
-        key=slider_key  # Use the timeframe-specific key
-    )
+    # Create a new row for the actual inputs and buttons
+    input_row = st.columns([3, 1, 1, 3, 1, 1])
+    
+    # Start index input field
+    with input_row[0]:
+        # Check if we have a stored value from button click
+        if f"{start_key}_stored_value" in st.session_state:
+            input_value = str(st.session_state[f"{start_key}_stored_value"])
+            # Clear stored value after using it
+            del st.session_state[f"{start_key}_stored_value"]
+        else:
+            input_value = str(default_start)
+            
+        start_str = st.text_input(
+            "Start Index",
+            value=input_value,
+            label_visibility="collapsed",
+            key=f"{start_key}_input",
+            help="Set the start index of the pattern"
+        )
+        # Validate input
+        try:
+            start_slider = int(start_str)
+            start_slider = min(max(start_slider, 0), len(df)-2)  # Ensure within valid range
+        except ValueError:
+            start_slider = default_start
+
+    # Decrease start button
+    with input_row[1]:
+        if st.button("←", key=f"{start_key}_decrease", use_container_width=True):
+            start_slider = max(start_slider - 1, 0)
+            # Store the value to be used in the next render
+            st.session_state[f"{start_key}_stored_value"] = start_slider
+            st.rerun()
+
+    # Increase start button
+    with input_row[2]:
+        if st.button("→", key=f"{start_key}_increase", use_container_width=True):
+            # Use the end slider value from session state
+            end_slider_key = f"end_slider_{interval}"
+            end_limit = st.session_state[end_slider_key]
+            start_slider = min(start_slider + 1, end_limit - 1)
+            # Store the value to be used in the next render
+            st.session_state[f"{start_key}_stored_value"] = start_slider
+            st.rerun()
+
+    # End index section with title
+    with pattern_cols[3]:
+        st.markdown("**End Index**")
+    
+    # Empty column for alignment
+    with pattern_cols[4]:
+        st.write("")
+
+    # Empty column for alignment
+    with pattern_cols[5]:
+        st.write("")
+    
+    # Use the same input row created earlier
+    # End index input field
+    with input_row[3]:
+        # Check if we have a stored value from button click
+        if f"{end_key}_stored_value" in st.session_state:
+            input_value = str(st.session_state[f"{end_key}_stored_value"])
+            # Clear stored value after using it
+            del st.session_state[f"{end_key}_stored_value"]
+        else:
+            input_value = str(default_end)
+            
+        end_str = st.text_input(
+            "End Index",
+            value=input_value,
+            label_visibility="collapsed",
+            key=f"{end_key}_input",
+            help="Set the end index of the pattern"
+        )
+        # Validate input
+        try:
+            end_slider = int(end_str)
+            end_slider = min(max(end_slider, start_slider + 1), len(df)-1)  # Ensure within valid range
+        except ValueError:
+            end_slider = default_end
+            
+        # Store the end slider value in session state for consistent access
+        end_slider_key = f"end_slider_{interval}"
+        st.session_state[end_slider_key] = end_slider
+
+    # Decrease end button
+    with input_row[4]:
+        if st.button("←", key=f"{end_key}_decrease", use_container_width=True):
+            end_slider = max(end_slider - 1, start_slider + 1)
+            # Store the value to be used in the next render
+            st.session_state[f"{end_key}_stored_value"] = end_slider
+            # Also update the session state for consistent access
+            end_slider_key = f"end_slider_{interval}"
+            st.session_state[end_slider_key] = end_slider
+            st.rerun()
+
+    # Increase end button
+    with input_row[5]:
+        if st.button("→", key=f"{end_key}_increase", use_container_width=True):
+            end_slider = min(end_slider + 1, len(df)-1)
+            # Store the value to be used in the next render
+            st.session_state[f"{end_key}_stored_value"] = end_slider
+            # Also update the session state for consistent access
+            end_slider_key = f"end_slider_{interval}"
+            st.session_state[end_slider_key] = end_slider
+            st.rerun()
+            
+    # Display range info
+    st.caption(f"Valid range: 0-{len(df)-1}")
     
     # Removed caption text as requested
     
@@ -1784,14 +2020,15 @@ if st.session_state.btc_data is not None:
     st.markdown(
         """
         <style>
-        /* Style the button and number input containers to match them exactly */
+        /* ===== NUMBER INPUTS & ADDITIONAL FORM ELEMENTS ===== */
+        /* Style number inputs to match buttons and select boxes */
         .stButton button,
         .stNumberInput [data-baseweb="input"],
         .stNumberInput [data-baseweb="base-input"],
         .stSelectbox [data-baseweb="select"] {
-            background-color: #2c2c2c !important;
-            color: #cccccc !important;
-            border-color: #444444 !important;
+            background-color: var(--button-bg) !important;
+            color: var(--text-color) !important;
+            border-color: var(--button-border) !important;
             border-width: 1px !important;
             border-style: solid !important;
             border-radius: 4px !important;
@@ -1802,24 +2039,24 @@ if st.session_state.btc_data is not None:
         .stNumberInput:hover [data-baseweb="input"],
         .stNumberInput:hover [data-baseweb="base-input"],
         .stSelectbox:hover [data-baseweb="select"] {
-            background-color: #3a3a3a !important;
-            border-color: #555555 !important;
+            background-color: var(--button-hover-bg) !important;
+            border-color: var(--button-hover-border) !important;
         }
         
-        /* Ensure the text color matches exactly */
+        /* Ensure text colors match */
         .stButton button span,
         .stNumberInput input,
         .stSelectbox [data-baseweb="select"] span {
-            color: #cccccc !important;
+            color: var(--text-color) !important;
         }
         
         /* Make labels match */
         .stNumberInput label,
         .stSelectbox label {
-            color: #cccccc !important;
+            color: var(--text-color) !important;
         }
         
-        /* Completely remove spinner buttons */
+        /* Remove spinner buttons from number inputs */
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { 
             -webkit-appearance: none !important;
@@ -1827,15 +2064,15 @@ if st.session_state.btc_data is not None:
             opacity: 0 !important;
         }
         
-        /* Make sure the input itself is properly styled */
+        /* Number input base styling */
         .stNumberInput input {
-            background-color: #2c2c2c !important;
+            background-color: var(--button-bg) !important;
             border: none !important;
             outline: none !important;
             box-shadow: none !important;
         }
         
-        /* Remove any artifacts or extras */
+        /* Remove artifacts */
         .stNumberInput [data-baseweb="input"]::after,
         .stNumberInput [data-baseweb="input"]::before,
         .stNumberInput [data-baseweb="base-input"]::after,
@@ -1844,12 +2081,13 @@ if st.session_state.btc_data is not None:
             content: none !important;
         }
         
-        /* Hide any visual markers we don't want */
+        /* Hide visual markers */
         [data-testid="stMarkdownContainer"] small {
             display: none !important;
         }
         
-        /* Fix for temporary slider appearing near analysis method selector */
+        /* ===== SLIDER FIXES ===== */
+        /* Fix for temporary slider artifacts */
         div.element-container:has(div[data-baseweb="slider"]) ~ div.element-container:has(div[data-baseweb="slider"]) {
             display: none !important;
             visibility: hidden !important;
@@ -1859,13 +2097,53 @@ if st.session_state.btc_data is not None:
             pointer-events: none !important;
         }
         
-        /* Ensure sliders adjacent to selectboxes don't create temporary UI elements */
+        /* Hide sliders adjacent to selectboxes */
         div.element-container:has(div[data-baseweb="select"]) ~ div.element-container:has(div[data-baseweb="slider"]) {
             opacity: 0 !important;
             height: 0 !important;
             overflow: hidden !important;
             position: absolute !important;
             z-index: -999 !important;
+        }
+        
+        /* ===== EXPAND BUTTON FIXES ===== */
+        /* Global button styling to ensure consistent button appearance */
+        .stButton button {
+            margin: 0 !important;
+            padding: 0.55rem 0.55rem !important;
+            height: 2.5rem !important;
+            min-height: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        /* Match container styling */
+        .match_header_cols {
+            display: flex !important;
+            align-items: center !important;
+        }
+        
+        /* Fix match header column spacing */
+        .match_header_cols [data-testid="column"] {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Remove extra spacing around containers in match header */
+        .match_header_cols [data-testid="stMarkdownContainer"],
+        .match_header_cols [data-testid="element-container"] {
+            margin-bottom: 0 !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        /* Ensure vertical alignment of the button */
+        .match_header_cols .stButton {
+            display: flex !important;
+            align-items: center !important;
+            height: 100% !important;
         }
         </style>
         """,
@@ -1882,72 +2160,357 @@ if st.session_state.btc_data is not None:
     analysis_method_cols = st.columns([1, 1])
     
     with analysis_method_cols[0]:
-        # Add analysis method selection
-        st.markdown("**Analysis Method**")
+        # Analysis Method with help icon directly next to it
+        if "analysis_method" not in st.session_state or st.session_state.analysis_method == "Matrix Profile":
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Analysis Method <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Matrix Profile finds visually similar patterns using a shape-based matching algorithm. It's ideal for finding historical occasions where price action behaved similarly.")
+        else:
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Analysis Method <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Feature Extraction uses Principal Component Analysis (PCA) to find statistically similar patterns based on underlying market conditions.")
+        
+        # Function to update tooltip when method changes
+        def on_method_change():
+            st.session_state.needs_rerun = True
+            
         analysis_method = st.selectbox(
             "Analysis Method",
             options=["Matrix Profile", "Feature Extraction"],
             index=0 if "analysis_method" not in st.session_state else 
                   (0 if st.session_state.analysis_method == "Matrix Profile" else 1),
             label_visibility="collapsed",
-            help="Matrix Profile finds exact shape matches. Feature Extraction finds patterns with similar statistical properties."
+            on_change=on_method_change,
+            key="analysis_method_select"
         )
         # Store the selected method in session state
         st.session_state.analysis_method = analysis_method
+        
+        # Handle rerun to update tooltip
+        if st.session_state.get('needs_rerun', False):
+            st.session_state.needs_rerun = False
+            st.rerun()
     
     with analysis_method_cols[1]:
         # Always create a container for consistency regardless of method
         components_container = st.container()
         
-        # Show component selector only if Feature Extraction is selected
-        if analysis_method == "Feature Extraction":
-            with components_container:
-                st.markdown("**Number of Components**")
+        # Always create the same header structure regardless of method
+        with components_container:
+            # Number of Components title with help icon directly next to it
+            if analysis_method == "Feature Extraction":
+                st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Number of Components <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Number of components for dimensionality reduction. 2-3 components visualize well, more components can capture more complex relationships.")
+            else:
+                # Empty div to maintain layout
+                st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Number of Components</div>", unsafe_allow_html=True)
+            
+            # Show component selector only if Feature Extraction is selected
+            if analysis_method == "Feature Extraction":
                 component_options = [2, 3, 4, 5]
                 n_components = st.selectbox(
                     "Components",
                     options=component_options,
                     index=component_options.index(st.session_state.n_components) if hasattr(st.session_state, 'n_components') and st.session_state.n_components in component_options else 0,
                     label_visibility="collapsed",
-                    key="components_selector",  # Add explicit key to avoid conflicts
-                    help="Number of components for dimensionality reduction. 2-3 components visualize well, more components can capture more complex relationships."
+                    key="components_selector"  # Add explicit key to avoid conflicts
                 )
                 # Store the components value
                 st.session_state.n_components = n_components
-        else:
-            # When Matrix Profile is selected, create an empty placeholder to maintain layout
-            with components_container:
-                # Need to render something hidden to maintain layout
-                st.markdown('<div style="display:none;">placeholder</div>', unsafe_allow_html=True)
+            else:
+                # When Matrix Profile is selected, create an empty placeholder to maintain layout
+                st.markdown('<div style="height:34px;"></div>', unsafe_allow_html=True)
+                
+    # Add CSS for checkbox alignment
+    st.markdown("""
+    <style>
+    /* Reduce vertical space between elements */
+    div.element-container {
+        margin-bottom: 0.2rem !important;
+    }
     
-    # Add spacing before guidance text - increase it to match what's below
-    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+    /* Align checkbox labels in a row */
+    .stCheckbox, .stRadio {
+        display: inline-block !important;
+        margin-right: 10px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
     
-    # Add guidance text that spans the full width
-    if analysis_method == "Matrix Profile":
-        st.markdown("""
-        **Matrix Profile - Find Visually Similar Patterns:** Matrix Profile finds visually similar patterns using a shape-based matching algorithm. It's ideal for finding historical occasions where price action behaved similarly to what you're seeing now or at a specific point in time. You can use it to confirm or refute specific chart formations you've identified. Setting tip: A multiplier filter setting of 1.2-1.5 provides strict matching for closer pattern similarity, while higher values up to 2.0 offers more flexible matching to capture broader pattern families. Score matches below 2 are ideal, above 4 the system is less reliable. For pattern selection, 15-50 candles generally works well, though up to 75 can still provide meaningful results. Beyond 100 candles, matches become increasingly rare and less precise. We recommend setting 50-100 maximum matches initially to explore similar historical periods. Important: Always examine the actual match charts rather than relying solely on the higher/lower statistics. Our median price comparison uses a fixed timeframe equal to 2 times the length of your selected pattern, which may not align with your specific trading horizon. The patterns themselves often reveal nuances and potential outcomes that statistics alone cannot capture. For trading guidance, if 70%+ of historical patterns moved in one direction, this may suggest a bias worth exploring further with your own analysis.
-        """)
-    else:  # feature_extraction
-        st.markdown("""
-        **Feature Extraction - Find Statistically Similar Patterns:** Feature Extraction uses Principal Component Analysis (PCA) to find statistically similar patterns based on underlying market conditions. This method excels at identifying market conditions and regime changes through statistical relationships—analyzing volatility clustering, momentum divergences, trend strength transitions, and complex intermarket correlations. It's more statistical than visual. The scatter plot shows pattern groupings where the blue dot represents your selected pattern, teal dots show matches, and proximity indicates similarity level. Patterns are matched using statistical indicators like volatility, trend strength, and candlestick characteristics rather than visual shape. Lower distance scores (under 2.0) indicate stronger statistical similarity, with scores below 1.0 representing particularly strong matches. Unlike visual matching, these scores represent distances in high-dimensional feature space (typically 15-25 dimensions reduced through PCA)—patterns with similar volatility signatures, trend momentum, and price action characteristics cluster together regardless of visual appearance. For component selection, start with 2 components (default). If explained variance is below 65%, try increasing to 3-4 components to capture more statistical detail, though higher values may include noise. Start with 50-100 maximum matches to identify the primary pattern clusters. For deeper regime analysis or system development, increase to 200+ matches to better understand the full feature landscape. Feature extraction works best with 20-40 candle patterns that capture sufficient market behavior to extract meaningful statistical properties. Important: Always examine the actual match charts rather than relying solely on the higher/lower statistics. Our median price comparison uses a fixed timeframe equal to 2 times the length of your selected pattern, which may not align with your specific trading horizon. The patterns themselves often reveal nuances and potential outcomes that statistics alone cannot capture. While these patterns may not look the same, they often lead to similar market behavior, making this method more sophisticated than the more straightforward matrix profile analysis.
-        """)
+    /* Fix checkbox vertical alignment */
+    .stCheckbox > div:first-child, .stRadio > div:first-child {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* Remove extra space around markdown title */
+    [data-testid="stMarkdownContainer"] {
+        margin-bottom: 0 !important;
+    }
+    
+    /* Fix radio button layout */
+    .stRadio > div > div {
+        flex-direction: row !important;
+        gap: 10px !important;
+    }
+    
+    /* Ensure radio button labels are aligned */
+    .stRadio > div > div > label {
+        display: flex !important;
+        align-items: center !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Add a small space before the checkbox row
+    st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+    
+    # Create a single row for all checkboxes side by side
+    checkbox_cols = st.columns([1, 1, 1, 1])
+    
+    # Market Regime Filtering
+    with checkbox_cols[0]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>Market Regime Filtering</div>", unsafe_allow_html=True)
+        use_regime_filter = st.checkbox(
+            "Enable",
+            value=st.session_state.get('use_regime_filter', False),
+            help="Filter matches to show only those from similar market regimes as the source pattern"
+        )
+        st.session_state.use_regime_filter = use_regime_filter
+    
+    # Regime Match Strictness
+    with checkbox_cols[1]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>Regime Match Strictness</div>", unsafe_allow_html=True)
+        regime_tolerance = st.radio(
+            "Strictness",
+            options=["Exact Match", "Similar Regimes"],
+            index=st.session_state.get('regime_tolerance', 0),
+            disabled=not use_regime_filter,
+            horizontal=True,
+            help="Exact match shows only patterns from the same regime. Similar regimes includes adjacent regimes.",
+            label_visibility="collapsed"
+        )
+        # Convert UI selection to numeric value
+        st.session_state.regime_tolerance = 0 if regime_tolerance == "Exact Match" else 1
+    
+    # Include Neutral Regime
+    with checkbox_cols[2]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>Include Neutral Regime</div>", unsafe_allow_html=True)
+        include_neutral = st.checkbox(
+            "Include",
+            value=st.session_state.get('include_neutral', True),
+            disabled=not use_regime_filter,
+            help="Always include patterns from the neutral market regime regardless of the source pattern's regime"
+        )
+        st.session_state.include_neutral = include_neutral
+    
+    # Prediction Method
+    with checkbox_cols[3]:
+        st.markdown("<div style='margin-bottom:0px;font-weight:bold;'>AVG Prediction Line</div>", unsafe_allow_html=True)
+        use_weighted = st.checkbox(
+            "Weighted",
+            value=st.session_state.get('use_weighted', False),
+            help="Better matches (lower scores) have higher influence on the prediction line"
+        )
+        st.session_state.use_weighted = use_weighted
         
-    # Add spacing after guidance text - keep the same amount
-    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+    # Add regime parameters when regime filtering is enabled
+    if use_regime_filter:
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        regime_param_cols = st.columns([1, 1, 2, 2])
+        
+        # Trend Threshold input (Bull/Bear percentage)
+        with regime_param_cols[0]:
+            # Trend Threshold title with help icon directly next to it
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Trend Threshold <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Threshold for price change to be considered bullish/bearish (as decimal, e.g., 0.03 = 3%)")
+            
+            trend_threshold_str = st.text_input(
+                "Trend Threshold",
+                value=str(st.session_state.get('trend_threshold', 0.03)),
+                label_visibility="collapsed",
+                key="trend_threshold_input"
+            )
+            
+            # Validate input and convert to float
+            try:
+                trend_threshold = float(trend_threshold_str)
+                trend_threshold = min(max(trend_threshold, 0.001), 0.20)  # Clamp within range
+                st.session_state.trend_threshold = trend_threshold
+            except ValueError:
+                trend_threshold = st.session_state.get('trend_threshold', 0.03)  # Fall back to default
+                
+            # Show range info
+            st.caption("Range: 0.001-0.20")
+            
+        # Efficiency Threshold input (Trendy/Volatile threshold)
+        with regime_param_cols[1]:
+            # Efficiency Threshold title with help icon directly next to it
+            st.markdown("<div style='font-weight:bold;margin-bottom:0px;'>Efficiency Threshold <span>&nbsp;</span></div>", unsafe_allow_html=True, help="Threshold for efficiency ratio to determine if price movement is trendy or volatile (0-1)")
+            
+            efficiency_threshold_str = st.text_input(
+                "Efficiency Threshold",
+                value=str(st.session_state.get('efficiency_threshold', 0.5)),
+                label_visibility="collapsed",
+                key="efficiency_threshold_input"
+            )
+            
+            # Validate input and convert to float
+            try:
+                efficiency_threshold = float(efficiency_threshold_str)
+                efficiency_threshold = min(max(efficiency_threshold, 0.1), 0.9)  # Clamp within range
+                st.session_state.efficiency_threshold = efficiency_threshold
+            except ValueError:
+                efficiency_threshold = st.session_state.get('efficiency_threshold', 0.5)  # Fall back to default
+                
+            # Show range info
+            st.caption("Range: 0.1-0.9")
+        
+    # Add a small space after the checkbox row
+    st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+    
+    # Create an info button that expands to show the text
+    if analysis_method == "Matrix Profile":
+        info_text = """
+        **Matrix Profile - Find Visually Similar Patterns:** Matrix Profile finds visually similar patterns using a shape-based matching algorithm. It's ideal for finding historical occasions where price action behaved similarly to what you're seeing now or at a specific point in time. You can use it to confirm or refute specific chart formations you've identified. Setting tip: A multiplier filter setting of 1.2-1.5 provides strict matching for closer pattern similarity, while higher values up to 2.0 offers more flexible matching to capture broader pattern families. Score matches below 2 are ideal, above 4 the system is less reliable. For pattern selection, 15-50 candles generally works well, though up to 75 can still provide meaningful results. Beyond 100 candles, matches become increasingly rare and less precise. We recommend setting 50-100 maximum matches initially to explore similar historical periods. Important: Always examine the actual match charts rather than relying solely on the higher/lower statistics. Our median price comparison uses a fixed timeframe equal to 2 times the length of your selected pattern, which may not align with your specific trading horizon. The patterns themselves often reveal nuances and potential outcomes that statistics alone cannot capture. For trading guidance, if 70%+ of historical patterns moved in one direction, this may suggest a bias worth exploring further with your own analysis.
+        """
+    else:  # feature_extraction
+        info_text = """
+        **Feature Extraction - Find Statistically Similar Patterns:** Feature Extraction uses Principal Component Analysis (PCA) to find statistically similar patterns based on underlying market conditions. This method excels at identifying market conditions and regime changes through statistical relationships—analyzing volatility clustering, momentum divergences, trend strength transitions, and complex intermarket correlations. It's more statistical than visual. The scatter plot shows pattern groupings where the blue dot represents your selected pattern, teal dots show matches, and proximity indicates similarity level. Patterns are matched using statistical indicators like volatility, trend strength, and candlestick characteristics rather than visual shape. Lower distance scores (under 2.0) indicate stronger statistical similarity, with scores below 1.0 representing particularly strong matches. Unlike visual matching, these scores represent distances in high-dimensional feature space (typically 15-25 dimensions reduced through PCA)—patterns with similar volatility signatures, trend momentum, and price action characteristics cluster together regardless of visual appearance. For component selection, start with 2 components (default). If explained variance is below 65%, try increasing to 3-4 components to capture more statistical detail, though higher values may include noise. Start with 50-100 maximum matches to identify the primary pattern clusters. For deeper regime analysis or system development, increase to 200+ matches to better understand the full feature landscape. Feature extraction works best with 20-40 candle patterns that capture sufficient market behavior to extract meaningful statistical properties. Important: Always examine the actual match charts rather than relying solely on the higher/lower statistics. Our median price comparison uses a fixed timeframe equal to 2 times the length of your selected pattern, which may not align with your specific trading horizon. The patterns themselves often reveal nuances and potential outcomes that statistics alone cannot capture. While these patterns may not look the same, they often lead to similar market behavior, making this method more sophisticated than the more straightforward matrix profile analysis.
+        """
+    
+    # Add custom CSS to fix vertical spacing between analysis method and info button
+    st.markdown("""
+    <style>
+    /* ===== EXPANDER STYLING ===== */
+    /* Adjust spacing around selectbox elements */
+    div.element-container:has([data-baseweb="select"]) {
+        margin-bottom: 0.2rem !important;
+    }
+    
+    /* Target the container of the expander to match other element spacing */
+    div.element-container:has(div[data-testid="stExpander"]) {
+        margin-top: 0.0rem !important;
+        margin-bottom: 0.2rem !important;
+        padding: 0 !important;
+    }
+    
+    /* Style the expander to match other buttons EXACTLY */
+    .streamlit-expanderHeader {
+        background-color: var(--button-bg) !important;
+        border-color: var(--button-border) !important;
+        border-radius: 4px !important;
+        border-width: 1px !important;
+        color: var(--text-color) !important;
+        font-family: var(--font-family) !important;
+        /* Match button padding exactly */
+        padding: 0.375rem 0.75rem !important;
+        line-height: 1 !important;
+        height: 2rem !important;
+        min-height: 0 !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background-color: var(--button-hover-bg) !important;
+        border-color: var(--button-hover-border) !important;
+    }
+    
+    /* Style the expander content area */
+    .streamlit-expanderContent {
+        background-color: var(--dropdown-bg) !important;
+        border-color: var(--button-border) !important;
+        border-width: 1px !important;
+        border-top: none !important;
+        padding: 10px !important;
+    }
+    
+    /* Style the arrow icon in the expander */
+    .streamlit-expanderHeader svg {
+        color: var(--text-color) !important;
+        fill: var(--text-color) !important;
+        margin-right: 0.5rem !important;
+    }
+    
+    /* Style the content text inside the expander */
+    .streamlit-expanderContent p {
+        color: var(--text-color) !important;
+        margin-bottom: 5px !important;
+    }
+    
+    /* Fix the text inside the button */
+    div[data-testid="stExpander"] div[role="button"] p {
+        font-size: 1rem !important;
+        font-weight: normal !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: var(--text-color) !important;
+    }
+    
+    /* Container styling */
+    div[data-testid="stExpander"] {
+        border: none !important;
+        background-color: transparent !important;
+    }
+    
+    /* Content area styling */
+    div[data-testid="stExpander"] details {
+        background-color: var(--bg-color) !important;
+    }
+    
+    div[data-testid="stExpander"] details summary {
+        margin-bottom: 0 !important;
+        list-style: none !important;
+        padding: 0 !important;
+    }
+    
+    div[data-testid="stExpander"] details summary ~ div {
+        padding: 1em !important;
+        background-color: var(--bg-color) !important;
+    }
+    
+    /* Adjust spacing around the expander */
+    div[data-testid="stExpander"] .stExpander {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Only control top margin of expander container, allow bottom margin */
+    div.element-container:has(div[data-testid="stExpander"]) {
+        margin-top: 0 !important;
+        padding: 0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Use the full width for the info button
+    # Use Streamlit's built-in expander with simpler label and matching styling
+    # Use Streamlit's built-in expander with styling that matches other buttons
+    with st.expander("Info", expanded=False):
+        st.markdown(info_text, unsafe_allow_html=True)
+    
+    # No spacer needed
+    # st.markdown("<div style='height: 5px'></div>", unsafe_allow_html=True)
     
     with pattern_search_cols[0]:
-        # Create a simple slider with a proper label
         st.markdown("**Maximum Matches**")
-        max_matches = st.slider(
-            "Maximum Matches",  # Provide a non-empty label to avoid warnings
-            min_value=10,
-            max_value=300,
-            value=current_max_matches,
-            step=5,
-            label_visibility="collapsed",  # Hide the label since we show it with markdown
-            help="Set the maximum number of patterns to find. Higher values will find more patterns but may take longer to process."
+        
+        # Text input with min/max validation
+        max_matches_str = st.text_input(
+            "Maximum Matches",
+            value=str(current_max_matches),
+            label_visibility="collapsed",
+            help="Set the maximum number of patterns to find (10-300). Higher values will find more patterns but may take longer to process.",
+            key="max_matches_input"
         )
+        
+        # Validate input and convert to int
+        try:
+            max_matches = int(max_matches_str)
+            max_matches = min(max(max_matches, 10), 300)  # Clamp within range
+        except ValueError:
+            max_matches = current_max_matches  # Fall back to current value on invalid input
+                
+        # Show range info
+        st.caption("Range: 10-300")
     
     # For the second column, make a global decision whether to show multiplier or not
     # This needs to be before the column definition
@@ -1962,17 +2525,27 @@ if st.session_state.btc_data is not None:
         if show_multiplier:
             # Only create the UI elements for Matrix Profile
             st.markdown("<strong>Filter (score multiplier)</strong>", unsafe_allow_html=True)
-            multiplier = st.slider(
+            
+            # Text input with min/max validation
+            multiplier_str = st.text_input(
                 "Filter Score Multiplier",
-                min_value=1.0,
-                max_value=3.0,
-                value=current_multiplier,
-                step=0.1,
-                format="%.1fx",
+                value=str(current_multiplier),
                 label_visibility="collapsed",
-                key="filter_slider",
-                help="Filter out patterns with scores above this multiplier of the best match score. Lower values = more similar patterns only."
+                help="Filter out patterns with scores above this multiplier (1.0-3.0) of the best match score. Lower values = more similar patterns only.",
+                key="filter_score_input"
             )
+            
+            # Validate input and convert to float
+            try:
+                multiplier = float(multiplier_str)
+                multiplier = min(max(multiplier, 1.0), 3.0)  # Clamp within range
+                # Format to one decimal place for display
+                multiplier = round(multiplier * 10) / 10
+            except ValueError:
+                multiplier = current_multiplier  # Fall back to current value on invalid input
+                
+            # Show range info
+            st.caption("Range: 1.0-3.0x")
         else:
             # For Feature Extraction - just create an empty placeholder to maintain layout
             # but don't create any UI controls that could appear temporarily
@@ -1988,6 +2561,11 @@ if st.session_state.btc_data is not None:
         st.session_state.max_matches = max_matches
         st.session_state.max_distance_pct = int(multiplier * 100)
         st.session_state.search_started = True
+        
+        # Reset all expanded views when starting a new search
+        for key in list(st.session_state.keys()):
+            if key.startswith('expand_state_'):
+                st.session_state[key] = False
         
         # Force a rerun to trigger the search code below
         st.rerun()
@@ -2041,7 +2619,12 @@ if st.session_state.btc_data is not None:
                                 max_matches=st.session_state.max_matches,
                                 following_points=pattern_length * 2,
                                 search_start=st.session_state.search_range['start_date'],
-                                search_end=st.session_state.search_range['end_date']
+                                search_end=st.session_state.search_range['end_date'],
+                                use_regime_filter=st.session_state.use_regime_filter,
+                                regime_tolerance=st.session_state.regime_tolerance,
+                                include_neutral=st.session_state.include_neutral,
+                                trend_threshold=st.session_state.get('trend_threshold', 0.03),
+                                efficiency_threshold=st.session_state.get('efficiency_threshold', 0.5)
                             )
                         )
                     else:
@@ -2057,7 +2640,12 @@ if st.session_state.btc_data is not None:
                                 following_points=pattern_length * 2,
                                 search_start=st.session_state.search_range['start_date'],
                                 search_end=st.session_state.search_range['end_date'],
-                                n_components=st.session_state.n_components
+                                n_components=st.session_state.n_components,
+                                use_regime_filter=st.session_state.use_regime_filter,
+                                regime_tolerance=st.session_state.regime_tolerance,
+                                include_neutral=st.session_state.include_neutral,
+                                trend_threshold=st.session_state.get('trend_threshold', 0.03),
+                                efficiency_threshold=st.session_state.get('efficiency_threshold', 0.5)
                             )
                         )
                 
@@ -2141,7 +2729,12 @@ if st.session_state.search_results:
                 
                 # Display the feature space visualization using full width
                 st.subheader("Pattern Families in Feature Space")
-                st.plotly_chart(feature_space_fig, use_container_width=True)
+                # Use consistent chart configuration
+                chart_config = {
+                    'scrollZoom': True,
+                    'displaylogo': False,
+                }
+                st.plotly_chart(feature_space_fig, use_container_width=True, config=chart_config)
                 
                 # Code for displaying feature importance in second column - commented out but kept for future use
                 # if feature_importance_fig is not None:
@@ -2177,6 +2770,34 @@ if st.session_state.search_results:
         # Display the total count of matches
         total_matches = len(filtered_matches)
         
+        # Display source pattern market regime if available
+        if 'source_regime' in results and 'source_regime_name' in results:
+            source_regime = results['source_regime']
+            source_regime_name = results['source_regime_name']
+            
+            # Style regimes with colors
+            regime_colors = {
+                1: "#4CAF50",  # Bullish-Stable: Green
+                2: "#8BC34A",  # Bullish-Volatile: Light Green
+                3: "#9E9E9E",  # Neutral: Grey
+                4: "#FF9800",  # Bearish-Stable: Orange
+                5: "#F44336",  # Bearish-Volatile: Red
+                6: "#2196F3"   # Choppy: Blue
+            }
+            regime_color = regime_colors.get(source_regime, "#9E9E9E")
+            
+            # Display the source pattern's regime with styling
+            st.markdown(f"**Source Pattern Market Regime:** <span style='color:{regime_color}'>{source_regime_name}</span>", 
+                        unsafe_allow_html=True)
+            
+            # Show regime filtering info if active
+            if st.session_state.use_regime_filter:
+                tolerance_text = "exact match" if st.session_state.regime_tolerance == 0 else "similar regimes"
+                neutral_text = ", including neutral regime matches" if st.session_state.include_neutral else ""
+                
+                st.markdown(f"*Filtering active:* Showing only {tolerance_text}{neutral_text}. "
+                          f"({results.get('debug_info', {}).get('regime_filtered_matches', 'N/A')} matches after filtering)")
+        
         # Calculate post-pattern price direction statistics
         higher_count = 0
         lower_count = 0
@@ -2191,20 +2812,18 @@ if st.session_state.search_results:
                 
                 # Only analyze if we have enough data after the pattern
                 if len(match_data) > pattern_length:
-                    # Calculate median close price of the pattern part (before the blue line)
-                    pattern_close_prices = match_data.iloc[:pattern_length]['close']
-                    pattern_median_close = pattern_close_prices.median()
+                    # Get the last close price of the pattern part (before the blue line)
+                    pattern_last_close = match_data.iloc[pattern_length-1]['close']
                     
-                    # Calculate median close price of the future part (after the blue line)
-                    future_close_prices = match_data.iloc[pattern_length:]['close']
-                    future_median_close = future_close_prices.median()
+                    # Get the last close price of the future part (after the blue line)
+                    future_last_close = match_data.iloc[-1]['close']
                     
-                    # Compare median values to see if price level went up or down after pattern
-                    if future_median_close > pattern_median_close:
+                    # Compare the last candle's close price to see if price went up or down after pattern
+                    if future_last_close > pattern_last_close:
                         higher_count += 1
-                    elif future_median_close < pattern_median_close:
+                    elif future_last_close < pattern_last_close:
                         lower_count += 1
-                    # Equal median prices not counted in either category
+                    # Equal prices not counted in either category
             
             # Display statistics with the total count of matches and filtering info
             if temp_matches and filtered_matches:
@@ -2345,14 +2964,14 @@ if st.session_state.search_results:
                         
                         # Use colored metrics with time information
                         st.metric(
-                            label=f"Median Price Higher {time_label} After Pattern", 
+                            label=f"Final Price Higher {time_label} After Pattern", 
                             value=f"{higher_count} patterns", 
                             delta=f"{higher_pct:.1f}%",
                             delta_color="normal"
                         )
                         
                         st.metric(
-                            label=f"Median Price Lower {time_label} After Pattern", 
+                            label=f"Final Price Lower {time_label} After Pattern", 
                             value=f"{lower_count} patterns", 
                             delta=f"{lower_pct:.1f}%",
                             delta_color="inverse"  # Inverse makes down neutral/up green
@@ -2462,18 +3081,19 @@ if st.session_state.search_results:
                             paper_bgcolor=st.session_state.candle_style['background_color'],
                             font=dict(color="#999999", size=10),  # Lighter color for axis text
                             showlegend=False,  # Remove legend entirely
-                            # Enhance x-axis with proper range limits and more granular ticks
+                            # Enhance x-axis with proper range limits and adaptive ticks
                             xaxis=dict(
                                 range=[plot_min, plot_max],  # Set range to min/max with margins
                                 showgrid=True,
                                 gridcolor='#999999',  # Match grid color to text color
                                 gridwidth=0.5,      # Make grid lines slightly thicker
                                 zeroline=False,
-                                dtick=0.1,  # Moderate tick intervals (0.1 steps)
+                                # Remove fixed dtick to allow auto-adjustment based on data range
                                 tickformat=".2f",  # Show two decimal places for more precision
                                 title_font=dict(color="#999999"),  # Lighter color for axis title
                                 title="Score",      # Add explicit axis title
-                                nticks=15           # Fewer tick marks for better readability
+                                nticks=8,          # Limit number of ticks to prevent overlap
+                                automargin=True    # Ensure labels don't get cut off
                             ),
                             # Enhance y-axis with fixed range to prevent empty space
                             yaxis=dict(
@@ -2488,11 +3108,766 @@ if st.session_state.search_results:
                         )
                     
                         # Display the histogram
-                        st.plotly_chart(hist_fig, use_container_width=True, config={'displayModeBar': False})
+                        # Use consistent chart configuration
+                        chart_config = {
+                            'scrollZoom': True,
+                            'displaylogo': False,
+                        }
+                        st.plotly_chart(hist_fig, use_container_width=True, config=chart_config)
             else:
                 st.header(f"Found {total_matches} Similar Patterns")
             
             # Price direction stats now displayed earlier in the UI flow
+            
+            # Function to create prediction visualization chart that shows match outcomes
+            def create_prediction_chart(source_pattern, matches, style=None, max_matches=30, main_df=None, start_idx=None, end_idx=None, use_weighted=False):
+                """
+                Create a chart showing potential future outcomes based on all matches.
+                
+                Args:
+                    source_pattern: Reference pattern data
+                    matches: List of pattern matches
+                    style: Candlestick style for the chart
+                    max_matches: Maximum number of matches to display
+                    main_df: Main dataframe for extracting actual future data
+                    start_idx: Start index of pattern in main dataframe
+                    end_idx: End index of pattern in main dataframe
+                    use_weighted: Whether to use weighted averaging instead of median
+                    matches: List of match results with pattern_data
+                    style: Chart style dictionary
+                    max_matches: Maximum number of matches to include in visualization
+                    main_df: Optional main dataframe to extract actual future data if pattern is historical
+                    start_idx: Optional start index of the pattern in the main dataframe
+                    end_idx: Optional end index of the pattern in the main dataframe
+                    
+                Returns:
+                    Plotly figure object
+                """
+                if style is None:
+                    style = st.session_state.candle_style
+                
+                if not matches or len(matches) == 0:
+                    return None
+                
+                # Create a figure for the prediction chart
+                pred_fig = go.Figure()
+                
+                # Get the source pattern data
+                source_df = pd.DataFrame(source_pattern)
+                source_times = [datetime.fromtimestamp(ts/1000) for ts in source_df["timestamp"]]
+                pattern_length = len(source_df)
+                
+                # Add source pattern as candlesticks (past data)
+                pred_fig.add_trace(
+                    go.Candlestick(
+                        x=source_times,
+                        open=source_df['open'],
+                        high=source_df['high'],
+                        low=source_df['low'],
+                        close=source_df['close'],
+                        name=None,
+                        increasing=dict(
+                            line=dict(color='rgba(66, 135, 245, 0.7)'),  # Light blue
+                            fillcolor='rgba(66, 135, 245, 0.7)'          # Light blue with transparency
+                        ),
+                        decreasing=dict(
+                            line=dict(color='rgba(26, 86, 196, 0.7)'),   # Darker blue
+                            fillcolor='rgba(26, 86, 196, 0.7)'           # Darker blue with transparency
+                        ),
+                        hoverinfo="x+y"
+                    )
+                )
+                
+                # Get the reference price (last close of source pattern)
+                reference_price = source_df['close'].iloc[-1]
+                reference_time = source_times[-1]
+                
+                # Create invisible anchor point at reference price/time
+                pred_fig.add_trace(
+                    go.Scatter(
+                        x=[reference_time],
+                        y=[reference_price],
+                        mode='markers',
+                        marker=dict(size=10, color='rgba(255, 255, 255, 0.5)'),
+                        name='Reference Point',
+                        hoverinfo='y',
+                        showlegend=False
+                    )
+                )
+                
+                # Calculate the average timeframe between candles in the pattern
+                # This will help us space out future projections
+                time_diffs = []
+                for i in range(1, len(source_times)):
+                    time_diffs.append((source_times[i] - source_times[i-1]).total_seconds())
+                avg_time_diff = np.mean(time_diffs) if time_diffs else 3600  # Default to 1 hour if can't calculate
+                
+                # Calculate how far into the future we should display (2x pattern length) 
+                # Define this early for consistent use throughout the function
+                target_future_points = pattern_length * 2
+
+                # Create a list to hold normalized future paths
+                match_futures = []
+                min_pct_changes = []  # Lowest point per match
+                max_pct_changes = []  # Highest point per match
+                final_pct_changes = []  # Final point per match
+                
+                # Limit the number of matches to show
+                num_matches = min(len(matches), max_matches)
+                
+                # Process each match to extract future data and normalize
+                for i in range(num_matches):
+                    match = matches[i]
+                    match_data = pd.DataFrame(match["pattern_data"])
+                    
+                    # Skip if not enough data
+                    if len(match_data) <= pattern_length:
+                        continue
+                        
+                    # Get the future part (everything after pattern_length)
+                    future_data = match_data.iloc[pattern_length:]
+                    
+                    # Get the reference point (last candle of the pattern part)
+                    match_reference_price = match_data['close'].iloc[pattern_length-1]
+                    
+                    # Calculate percentage changes from reference point
+                    pct_changes = (future_data['close'] / match_reference_price - 1) * 100
+                    pct_changes_list = pct_changes.tolist()
+                    
+                    # Store the data
+                    match_futures.append({
+                        'pct_changes': pct_changes_list,
+                        'min_pct': pct_changes.min() if not pct_changes.empty else 0,
+                        'max_pct': pct_changes.max() if not pct_changes.empty else 0,
+                        'final_pct': pct_changes.iloc[-1] if not pct_changes.empty else 0,
+                        'distance': match['distance']  # Keep track of match quality
+                    })
+                    
+                    # Store extremes and final values for statistics
+                    if not pct_changes.empty:
+                        min_pct_changes.append(pct_changes.min())
+                        max_pct_changes.append(pct_changes.max())
+                        final_pct_changes.append(pct_changes.iloc[-1])
+                
+                # Calculate average timeframes for future projection
+                projection_times = []
+                # Use consistent max_future_points based on target_future_points
+                max_future_points = max(
+                    max([len(m['pct_changes']) for m in match_futures]) if match_futures else 0,
+                    target_future_points  # Ensure at least target_future_points
+                )
+                
+                for i in range(max_future_points):
+                    projection_times.append(reference_time + timedelta(seconds=avg_time_diff * (i+1)))
+                
+                # Add lines for each match outcome
+                for i, match_future in enumerate(match_futures):
+                    pct_changes = match_future['pct_changes']
+                    match_quality = match_future['distance']  # Lower distance = better match
+                    
+                    # Calculate match quality based on distance
+                    # Get all distances for color mapping
+                    all_distances = [m['distance'] for m in match_futures]
+                    min_dist = min(all_distances)
+                    max_dist = max(all_distances)
+                    norm_range = max_dist - min_dist if max_dist > min_dist else 1
+                    
+                    # Normalize the match quality to a 0-1 range (0 = best, 1 = worst)
+                    normalized_quality = (match_quality - min_dist) / norm_range if norm_range > 0 else 0.5
+                    
+                    # Create a color gradient from light to dark gray based on match quality
+                    # Very light gray (235) for best matches, dark gray (50) for worst matches
+                    # Use a smooth gradient between them
+                    gray_level = int(235 - normalized_quality * 185)
+                    
+                    # Set opacity (always visible but slightly transparent)
+                    opacity = 0.65
+                    
+                    # Convert to numpy array for easier handling
+                    pct_array = np.array(pct_changes)
+                    
+                    # Calculate future prices based on percentage changes
+                    future_prices = [reference_price * (1 + pct/100) for pct in pct_array]
+                    
+                    # For consistent display, use exactly the target number of data points
+                    # If we have more than we need, truncate 
+                    # If we have fewer than we need, we'll only draw what we have
+                    data_points = min(len(pct_array), target_future_points)
+                    
+                    # Always use the consistent time grid for all elements (real data and projections)
+                    # Get up to the target number of projection times
+                    times_for_match = projection_times[:data_points]
+                    
+                    # Create the line color based on match quality
+                    # Simple gray scale - light gray for good matches, dark for poor matches
+                    line_color = f'rgba({gray_level}, {gray_level}, {gray_level}, {opacity})'
+                    
+                    # Add line for this match with coloring based on quality
+                    pred_fig.add_trace(
+                        go.Scatter(
+                            x=[reference_time] + times_for_match,
+                            y=[reference_price] + future_prices[:data_points],
+                            mode='lines',
+                            line=dict(
+                                color=line_color,
+                                width=1.5
+                            ),
+                            name=f"Match #{i+1}",
+                            showlegend=False,
+                            hoverinfo="y+text",
+                            hovertext=["Reference"] + [f"{pct:.2f}% change" for pct in pct_array[:data_points]]
+                        )
+                    )
+                    
+                    # We'll rely on the min, max, and final points below for hover information
+                    # instead of adding extra hover points here
+                    
+                    # Add markers for min, max, and final points
+                    # Need to be careful here as we're now limiting data_points based on target_future_points
+                    # Make sure we don't use indices beyond what we're actually displaying
+                    displayed_pct_array = pct_array[:data_points]
+                    displayed_future_prices = future_prices[:data_points]
+                    
+                    if len(displayed_pct_array) > 0:
+                        # Get indices of min and max points within the displayed part only
+                        min_idx = np.argmin(displayed_pct_array)
+                        max_idx = np.argmax(displayed_pct_array)
+                        
+                        # Min point (red)
+                        # Make sure min_idx is actually valid for times_for_match
+                        if min_idx < len(times_for_match):
+                            pred_fig.add_trace(
+                                go.Scatter(
+                                    x=[times_for_match[min_idx]],
+                                    y=[displayed_future_prices[min_idx]],
+                                    mode='markers',
+                                    marker=dict(
+                                        size=6,
+                                        color='rgba(239, 83, 80, {})'.format(opacity),
+                                        line=dict(
+                                            color='rgba(239, 83, 80, {})'.format(opacity),
+                                            width=1
+                                        )
+                                    ),
+                                    name=f"Min: {displayed_pct_array[min_idx]:.2f}%",
+                                    showlegend=False,
+                                    hoverinfo="text",
+                                    hovertext=[f"Match #{i+1} - Min: {displayed_pct_array[min_idx]:.2f}%"]
+                                )
+                            )
+                        
+                        # Max point (green)
+                        # Make sure max_idx is actually valid for times_for_match
+                        if max_idx < len(times_for_match):
+                            pred_fig.add_trace(
+                                go.Scatter(
+                                    x=[times_for_match[max_idx]],
+                                    y=[displayed_future_prices[max_idx]],
+                                    mode='markers',
+                                    marker=dict(
+                                        size=6,
+                                        color='rgba(38, 166, 154, {})'.format(opacity),
+                                        line=dict(
+                                            color='rgba(38, 166, 154, {})'.format(opacity),
+                                            width=1
+                                        )
+                                    ),
+                                    name=f"Max: {displayed_pct_array[max_idx]:.2f}%",
+                                    showlegend=False,
+                                    hoverinfo="text",
+                                    hovertext=[f"Match #{i+1} - Max: {displayed_pct_array[max_idx]:.2f}%"]
+                                )
+                            )
+                        
+                        # Final point (blue) - only if we have at least one point in the displayed array
+                        if len(times_for_match) > 0 and len(displayed_pct_array) > 0:
+                            final_pct = displayed_pct_array[-1]
+                            pred_fig.add_trace(
+                                go.Scatter(
+                                    x=[times_for_match[-1]],
+                                    y=[displayed_future_prices[-1]],
+                                    mode='markers',
+                                    marker=dict(
+                                        size=6,
+                                        color='rgba(66, 135, 245, {})'.format(opacity),
+                                        line=dict(
+                                            color='rgba(66, 135, 245, {})'.format(opacity),
+                                            width=1
+                                        )
+                                    ),
+                                    name=f"Final: {final_pct:.2f}%",
+                                    showlegend=False,
+                                    hoverinfo="text",
+                                    hovertext=[f"Match #{i+1} - Final: {final_pct:.2f}%"]
+                                )
+                            )
+                
+                # Calculate the "ghost path" - either median or weighted average of all matches at each point
+                if match_futures:
+                    # Collect all percentage changes
+                    all_pct_series = []
+                    
+                    # Determine the maximum data points (limited to 2x pattern length for consistency)
+                    max_len = min(max([len(m['pct_changes']) for m in match_futures]), target_future_points)
+                    
+                    # Pad all series to the same length
+                    for match_future in match_futures:
+                        # Trim to max_len if needed (for consistency with other elements)
+                        pct_series = pd.Series(match_future['pct_changes'][:max_len])
+                        # Pad with NaN if needed
+                        padded = pct_series.reindex(range(max_len), fill_value=np.nan)
+                        all_pct_series.append(padded)
+                    
+                    # Stack into a DataFrame
+                    pct_df = pd.concat(all_pct_series, axis=1)
+                    
+                    if use_weighted:
+                        # Use weighted average based on match quality
+                        match_scores = [m['distance'] for m in match_futures]  # Access distance directly
+                        max_score = max(match_scores)
+                        min_score = min(match_scores)
+                        
+                        # Ensure we don't divide by zero
+                        score_range = max_score - min_score
+                        if score_range == 0:
+                            # Equal weights if all scores are the same
+                            weights = [1.0 for _ in match_scores]
+                        else:
+                            # Calculate inverse weights (lower score = better match = higher weight)
+                            weights = [(max_score - score) / score_range for score in match_scores]
+                            
+                            # Apply quadratic weighting to emphasize better matches more
+                            weights = [w**2 for w in weights]
+                            
+                            # Normalize weights to sum to 1
+                            sum_weights = sum(weights)
+                            weights = [w / sum_weights for w in weights]
+                        
+                        # Apply weights to each column
+                        weighted_df = pct_df.copy()
+                        for i, col in enumerate(weighted_df.columns):
+                            weighted_df[col] = weighted_df[col] * weights[i]
+                            
+                        # Sum across columns to get weighted average
+                        weighted_pcts = weighted_df.sum(axis=1, skipna=True)
+                        prediction_pcts = weighted_pcts
+                        path_name = "Weighted Path"
+                    else:
+                        # Use standard median approach
+                        prediction_pcts = pct_df.median(axis=1, skipna=True)
+                        path_name = "Median Path"
+                    
+                    # Convert back to prices
+                    prediction_prices = [reference_price * (1 + pct/100) for pct in prediction_pcts]
+                    
+                    # Make sure we have enough projection_times for the prediction
+                    while len(projection_times) < len(prediction_prices):
+                        next_time = reference_time + timedelta(seconds=avg_time_diff * (len(projection_times) + 1))
+                        projection_times.append(next_time)
+                    
+                    # Add reference horizontal line at the reference price level
+                    pred_fig.add_shape(
+                        type="line",
+                        x0=reference_time,  # Start at reference point
+                        x1=projection_times[-1],  # End at last projection time point
+                        y0=reference_price,  # At the reference price level
+                        y1=reference_price,
+                        line=dict(
+                            color="rgba(150, 150, 150, 0.7)",
+                            width=1.5,
+                            dash="dot"
+                        )
+                    )
+                    
+                    # Add the median path with reduced thickness (2 instead of 3)
+                    # Keep the original look and feel, just use prediction values
+                    pred_fig.add_trace(
+                        go.Scatter(
+                            x=[reference_time] + projection_times[:len(prediction_prices)],
+                            y=[reference_price] + prediction_prices,
+                            mode='lines',
+                            line=dict(
+                                color='rgba(255, 255, 255, 1.0)',  # White
+                                width=2,  # Reduced thickness from 3 to 2
+                                dash='solid'  # Always use solid line, regardless of weighted or not
+                            ),
+                            name=path_name,
+                            hoverinfo="y+text",
+                            hovertext=["Reference"] + [f"{pct:.2f}% change" for pct in prediction_pcts.values]
+                        )
+                    )
+                
+                # NEW: Add actual price data if this is a historical pattern
+                # Check if we have the main dataframe and indexes, and if there's data after the pattern
+                has_actual_data = False
+                actual_pct_changes = []
+                actual_future_data = None
+                
+                if main_df is not None and start_idx is not None and end_idx is not None:
+                    # Check if the pattern is not at the end of the data
+                    if end_idx < len(main_df) - 1:
+                        # Determine how many future points to show based on the pattern length
+                        pattern_length = end_idx - start_idx + 1  # Number of candles in the pattern
+                        
+                        # For future prediction, we want to show 2x the pattern length
+                        # This matches how we display historical patterns
+                        target_future_length = pattern_length * 2
+                        
+                        # Calculate how many future points we can actually show
+                        available_future_length = len(main_df) - end_idx - 1
+                        future_length = min(target_future_length, available_future_length)
+                        
+                        if future_length > 0:
+                            # Extract the actual future data
+                            future_start_idx = end_idx + 1
+                            future_end_idx = future_start_idx + future_length - 1
+                            future_end_idx = min(future_end_idx, len(main_df) - 1)  # Ensure we don't go past the data
+                            
+                            actual_future_data = main_df.iloc[future_start_idx:future_end_idx+1]
+                            
+                            # Calculate percentage changes from reference point (last candle of pattern)
+                            # for statistics calculation only
+                            actual_reference_price = main_df.iloc[end_idx]['close']
+                            actual_pct_changes = [(price / actual_reference_price - 1) * 100 for price in actual_future_data['close']]
+                            
+                            # Get key statistics about what actually happened after the pattern
+                            actual_final_price = actual_future_data['close'].iloc[-1] if not actual_future_data.empty else 0
+                            actual_final_pct_change = ((actual_final_price / actual_reference_price) - 1) * 100
+                            
+                            has_actual_data = True
+                
+                # Add the actual candles if available
+                if has_actual_data and actual_future_data is not None and not actual_future_data.empty:
+                    # First, let's add a reference point - a thin dotted line at the level of the last pattern close price
+                    # This makes it easier to visually compare where the price started versus where it ended up
+                    pattern_end_price = main_df.iloc[end_idx]['close']  # The actual closing price at end of pattern
+                    
+                    # For the visualization scaling, we need to make the ranges compatible
+                    # Calculate the normalized prices relative to our reference price for consistency in the chart
+                    reference_ratio = reference_price / pattern_end_price
+                    
+                    # Normalize all OHLC data relative to our reference price for chart display
+                    # This is necessary for proper visualization - we're not changing the data, just scaling it 
+                    # to appear correctly on the same chart with the pattern matches
+                    normalized_open = [price * reference_ratio for price in actual_future_data['open']]
+                    normalized_high = [price * reference_ratio for price in actual_future_data['high']]
+                    normalized_low = [price * reference_ratio for price in actual_future_data['low']]
+                    normalized_close = [price * reference_ratio for price in actual_future_data['close']]
+                    
+                    # Create a consistent time grid that ensures the actual data terminates at the same point
+                    # as the match projections. We use the projection_times that were calculated earlier
+                    # for the match futures.
+                    
+                    # Calculate exactly how many projection points we need (2x pattern length)
+                    # (target_future_points is already defined above)
+                    
+                    # Ensure we have enough projection times for 2x pattern length
+                    while len(projection_times) < target_future_points:
+                        next_time = reference_time + timedelta(seconds=avg_time_diff * (len(projection_times) + 1))
+                        projection_times.append(next_time)
+                    
+                    # Extract just the number of projection times we need
+                    aligned_times = projection_times[:target_future_points]
+                    
+                    # If we have more actual data points than projection points, truncate
+                    # If we have fewer, we'll use only the times we have data for
+                    data_points = min(len(actual_future_data), len(aligned_times))
+                    
+                    # Add reference horizontal line at the pattern end price level (normalized)
+                    # Use the last projection time to ensure the line extends to the same end point as projections
+                    pred_fig.add_shape(
+                        type="line",
+                        x0=reference_time,  # Start at reference point
+                        x1=aligned_times[-1],  # End at last projection time point, ensuring same end point as projections
+                        y0=reference_price,  # At the reference price level
+                        y1=reference_price,
+                        line=dict(
+                            color="rgba(150, 150, 150, 0.7)",
+                            width=1.5,
+                            dash="dot"
+                        )
+                    )
+                    
+                    # Add actual future data as candlesticks with standard styling
+                    # Only use the data points we have, but align them to our projection time grid
+                    pred_fig.add_trace(
+                        go.Candlestick(
+                            x=aligned_times[:data_points],  # Use aligned times instead of actual datetime
+                            open=normalized_open[:data_points],
+                            high=normalized_high[:data_points],
+                            low=normalized_low[:data_points],
+                            close=normalized_close[:data_points],
+                            name="Actual Outcome",
+                            increasing=dict(
+                                line=dict(color=style['increasing_line_color']),
+                                fillcolor=style['increasing_color']
+                            ),
+                            decreasing=dict(
+                                line=dict(color=style['decreasing_line_color']),
+                                fillcolor=style['decreasing_color']
+                            ),
+                            hoverinfo="x+y"
+                        )
+                    )
+                    
+                    # For stats, use the actual percentage change from the final candle
+                    final_actual_pct = actual_final_pct_change
+                
+                # Calculate y-axis range to include all data points plus padding
+                all_prices = [reference_price]
+                for match_future in match_futures:
+                    min_price = reference_price * (1 + match_future['min_pct']/100)
+                    max_price = reference_price * (1 + match_future['max_pct']/100)
+                    all_prices.extend([min_price, max_price])
+                
+                # Include actual OHLC prices in the range calculation if available
+                if has_actual_data and actual_future_data is not None and not actual_future_data.empty:
+                    reference_ratio = reference_price / main_df.iloc[end_idx]['close']
+                    normalized_highs = [price * reference_ratio for price in actual_future_data['high']]
+                    normalized_lows = [price * reference_ratio for price in actual_future_data['low']]
+                    all_prices.extend(normalized_highs)
+                    all_prices.extend(normalized_lows)
+                
+                y_min = min(all_prices) * 0.99  # 1% padding below
+                y_max = max(all_prices) * 1.01  # 1% padding above
+                
+                # Define explicit x-axis range to ensure everything is properly aligned and bounded
+                x_min = reference_time
+                
+                # Determine pattern length for calculating target future range
+                pattern_length = 0
+                if start_idx is not None and end_idx is not None:
+                    pattern_length = end_idx - start_idx + 1
+                
+                # Calculate how far into the future we should display (2x pattern length)
+                target_future_points = pattern_length * 2
+                
+                # For the max range, use a consistent target future length (2x pattern length)
+                # This ensures the actual and predicted data are displayed with the same scale
+                if avg_time_diff > 0:
+                    # Set the view to exactly 2x pattern length into the future
+                    # This is the target end point for ALL visualization elements (match projections, median, real data)
+                    x_max = reference_time + timedelta(seconds=avg_time_diff * target_future_points)
+                
+                # Add 5% padding on the x-axis
+                time_range = x_max - x_min
+                padding = time_range * 0.05
+                x_min_padded = x_min - padding
+                x_max_padded = x_max + padding
+                
+                # Configure layout with enhanced hover effects
+                pred_fig.update_layout(
+                    title=None,  # Remove chart title since we have styled title above
+                    height=690,  # Match height with expanded view charts
+                    xaxis_rangeslider_visible=False,
+                    plot_bgcolor=style['background_color'],
+                    paper_bgcolor=style['background_color'],
+                    font=dict(color='white', family="ProtoMono-Light, monospace"),
+                    margin=dict(l=25, r=25, t=0, b=15),  # Removed top margin completely to match match charts
+                    showlegend=False,
+                    hoverlabel=dict(
+                        bgcolor=style['background_color'],
+                        font_size=14,
+                        font_family="ProtoMono-Light, monospace"
+                    ),
+                    shapes=[],
+                    annotations=[],
+                    xaxis_showticklabels=True,
+                    yaxis_showticklabels=True,
+                    modebar_remove=["lasso", "select"],
+                    # Use more focused hover that only displays when directly over points
+                    hovermode='closest',
+                    hoverdistance=10  # Only show hover info when very close to points
+                    # Removed explicit range setting to allow Plotly's autorange to work properly
+                )
+                
+                # This section is redundant - we already defined these variables earlier
+                # Ensure projection_times has enough points to reach x_max
+                while len(projection_times) < target_future_points:
+                    next_time = reference_time + timedelta(seconds=avg_time_diff * (len(projection_times) + 1))
+                    projection_times.append(next_time)
+                    
+                # Add invisible "anchor points" at the extremes to help Plotly's autorange show the complete chart
+                # Use 5% padding on left but only 1% on right as requested
+                padding_left = time_range * 0.05  # 5% padding on left
+                padding_right = time_range * 0.01  # 1% padding on right
+                x_min_wide = x_min - padding_left
+                x_max_wide = x_max + padding_right
+                
+                # Add invisible anchor point at the far left
+                pred_fig.add_trace(
+                    go.Scatter(
+                        x=[x_min_wide],
+                        y=[reference_price],  # Use reference price level
+                        mode='markers',
+                        marker=dict(size=0, opacity=0),  # Completely invisible
+                        showlegend=False,
+                        hoverinfo='none'
+                    )
+                )
+                
+                # Add invisible anchor point at the far right
+                pred_fig.add_trace(
+                    go.Scatter(
+                        x=[x_max_wide],
+                        y=[reference_price],  # Use reference price level
+                        mode='markers',
+                        marker=dict(size=0, opacity=0),  # Completely invisible
+                        showlegend=False,
+                        hoverinfo='none'
+                    )
+                )
+                
+                # Update x-axes with grid lines and flat time labels, without hover spikes
+                # Allow Plotly to autorange the x-axis based on all data points and anchor points
+                pred_fig.update_xaxes(
+                    showgrid=True,
+                    gridcolor=style['grid_color'],
+                    gridwidth=0.5,
+                    zeroline=False,
+                    showticklabels=True,
+                    linecolor=style['grid_color'],
+                    tickangle=0,  # Flat time labels
+                    tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                    tickformat="%m-%d<br>%H:%M",  # Two-line format with month-day on top, hours below
+                    nticks=15,
+                    ticks="outside",  # Place ticks outside the chart
+                    ticklen=8,  # Longer tick marks
+                    minor_showgrid=True,  # Show minor grid lines too
+                    minor_gridcolor=style['grid_color'],
+                    tickcolor="#999999",
+                    # Remove hover spikes
+                    showspikes=False
+                )
+                
+                # Set different tick spacing based on selected coin for y-axis
+                if st.session_state.selected_coin == "ETH":
+                    # ETH uses smaller price increments
+                    tick_spacing = 50    # Grid line every 50 price level for ETH
+                    tickformatstops_config = [
+                        dict(dtickrange=[None, 250], value=",.0f"),   # Show every 50 tick label
+                        dict(dtickrange=[250, None], value=",.0f")    # Show only every 250 tick label
+                    ]
+                else:
+                    # BTC uses larger price increments
+                    tick_spacing = 1000  # Grid line every 1k price level for BTC
+                    tickformatstops_config = [
+                        dict(dtickrange=[None, 5000], value=",.0f"),  # Show every 1k tick label
+                        dict(dtickrange=[5000, None], value=",.0f")   # Show only every 5k tick label
+                    ]
+                    
+                # Update y-axis with appropriate range and grid, without hover spikes
+                pred_fig.update_yaxes(
+                    range=[y_min, y_max],
+                    showgrid=True,
+                    gridcolor=style['grid_color'],
+                    gridwidth=0.5,
+                    zeroline=False,
+                    linecolor=style['grid_color'],
+                    dtick=tick_spacing,
+                    tickmode="linear",
+                    tick0=0,
+                    tickformat=",.0f",
+                    tickformatstops=tickformatstops_config,
+                    tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                    tickcolor="#999999",
+                    hoverformat=",.0f",
+                    showline=False,
+                    mirror=False,
+                    # Remove hover spikes
+                    showspikes=False
+                )
+                
+                # Update statistics - use weighted average if use_weighted is True
+                if use_weighted and match_futures:
+                    # Extract match scores and calculate weights (same as for the prediction line)
+                    match_scores = [m['distance'] for m in match_futures]
+                    max_score = max(match_scores)
+                    min_score = min(match_scores)
+                    
+                    # Ensure we don't divide by zero
+                    score_range = max_score - min_score
+                    if score_range == 0:
+                        # Equal weights if all scores are the same
+                        weights = [1.0 for _ in match_scores]
+                    else:
+                        # Calculate inverse weights (lower score = better match = higher weight)
+                        weights = [(max_score - score) / score_range for score in match_scores]
+                        
+                        # Apply quadratic weighting to emphasize better matches more
+                        weights = [w**2 for w in weights]
+                        
+                        # Normalize weights to sum to 1
+                        sum_weights = sum(weights)
+                        weights = [w / sum_weights for w in weights]
+                    
+                    # Calculate weighted statistics
+                    weighted_min = sum(min_pct * weight for min_pct, weight in zip(min_pct_changes, weights)) if min_pct_changes else 0
+                    weighted_max = sum(max_pct * weight for max_pct, weight in zip(max_pct_changes, weights)) if max_pct_changes else 0
+                    weighted_final = sum(final_pct * weight for final_pct, weight in zip(final_pct_changes, weights)) if final_pct_changes else 0
+                    
+                    stats = {
+                        'num_matches': len(match_futures),
+                        'avg_min': weighted_min,
+                        'avg_max': weighted_max,
+                        'avg_final': weighted_final,
+                        'has_actual_data': has_actual_data,
+                        'actual_final_pct': final_actual_pct if has_actual_data else None
+                    }
+                else:
+                    # Use simple average (mean) for all stats when not using weighted mode
+                    stats = {
+                        'num_matches': len(match_futures),
+                        'avg_min': np.mean(min_pct_changes) if min_pct_changes else 0,
+                        'avg_max': np.mean(max_pct_changes) if max_pct_changes else 0,
+                        'avg_final': np.mean(final_pct_changes) if final_pct_changes else 0,
+                        'has_actual_data': has_actual_data,
+                        'actual_final_pct': final_actual_pct if has_actual_data else None
+                    }
+                
+                return pred_fig, stats
+            
+            # Create and display prediction chart before showing individual matches
+            if filtered_matches and len(filtered_matches) > 0:
+                # Create the prediction visualization
+                result = create_prediction_chart(
+                    source_pattern, 
+                    filtered_matches, 
+                    style=st.session_state.candle_style,
+                    max_matches=len(filtered_matches),  # Use all filtered matches instead of hardcoded limit
+                    main_df=df,  # Pass main dataframe to extract actual future data
+                    start_idx=start_idx,  # Pass start index for the pattern
+                    end_idx=end_idx,  # Pass end index for the pattern
+                    use_weighted=use_weighted  # Pass weighted option
+                )
+                
+                # Unpack return value - contains figure and stats
+                pred_fig, stats = result
+                
+                # Display the chart with a consistent title style
+                if pred_fig is not None:
+                    # Let's use the same approach as the Match titles - no divs or custom CSS
+                    # This simpler approach will ensure spacing is identical to match titles
+                    # Add indication if actual data is shown
+                    # Add 'Weighted' to the title when weighted prediction is used
+                    stat_prefix = "Weighted" if use_weighted else "Avg"
+                    title_text = f"**Prediction: Pattern Outcomes** (Based on {stats['num_matches']} matches - {stat_prefix} Min: {stats['avg_min']:.2f}% | {stat_prefix} Max: {stats['avg_max']:.2f}% | {stat_prefix} Final: {stats['avg_final']:.2f}%)"
+                    
+                    # If we have actual data, add it to the title - keep it in the standard text color
+                    if stats.get('has_actual_data', False) and stats.get('actual_final_pct') is not None:
+                        title_text += f" | Actual Final: {stats['actual_final_pct']:.2f}%"
+                        
+                    st.markdown(title_text, unsafe_allow_html=True)
+                    
+                    # No JavaScript needed, using simple static visualization
+                    
+                    # Display chart without title (title is now in markdown)
+                    # Include the same config as the main chart to ensure consistent behavior
+                    chart_config = {
+                        'scrollZoom': True,
+                        'displaylogo': False,
+                    }
+                    st.plotly_chart(pred_fig, use_container_width=True, config=chart_config)
             
             # First display source pattern for reference - with some space
             st.markdown("<div style='height: 10px'></div>", unsafe_allow_html=True)
@@ -2510,11 +3885,11 @@ if st.session_state.search_results:
                         name=None,
                         increasing=dict(
                             line=dict(color='rgba(66, 135, 245, 0.7)'),  # Light blue
-                            fillcolor='rgba(66, 135, 245, 0.5)'          # Light blue with transparency
+                            fillcolor='rgba(66, 135, 245, 0.7)'          # Light blue with transparency
                         ),
                         decreasing=dict(
                             line=dict(color='rgba(26, 86, 196, 0.7)'),   # Darker blue
-                            fillcolor='rgba(26, 86, 196, 0.5)'           # Darker blue with transparency
+                            fillcolor='rgba(26, 86, 196, 0.7)'           # Darker blue with transparency
                         ),
                         hoverinfo="x+y"
                     )
@@ -2639,56 +4014,261 @@ if st.session_state.search_results:
             # Display source pattern with title and force full container width
             st.write("**Source Pattern (Reference)**")
             # Pass explicit width of 100% to ensure chart uses all available space
-            st.plotly_chart(source_fig, use_container_width=True, config={'displayModeBar': False})
+            # Use consistent chart configuration
+            chart_config = {
+                'scrollZoom': True,
+                'displaylogo': False,
+            }
+            st.plotly_chart(source_fig, use_container_width=True, config=chart_config)
             
             # Add a small spacer before the charts
             st.markdown("<div style='height: 15px'></div>", unsafe_allow_html=True)
             
-            # Precompute the median price comparison for each match
-            match_median_results = {}
+            # Function to create expanded view chart
+            def create_expanded_match_view(source_data, match_data, pattern_indices, match_date):
+                """Create expanded charts for both match and reference pattern"""
+                
+                # Calculate how much context to show (equal on both sides)
+                match_start, match_end = pattern_indices
+                pattern_length = match_end - match_start + 1
+                context_size = pattern_length * 2  # Show 2x pattern length as context
+                
+                # Get all indices as a list for easier manipulation
+                all_indices = list(range(len(match_data)))
+                                
+                # Create figure with two subplots stacked vertically
+                fig = make_subplots(
+                    rows=2, 
+                    cols=1,
+                    # Create regime-colored titles with HTML
+                    subplot_titles=(
+                        f"Matched Pattern from {match_date}",
+                        f"Reference Pattern"
+                    ),
+                    vertical_spacing=0.12,
+                    row_heights=[0.5, 0.5]  # Equal height for both charts
+                )
+                
+                # 1. Add matched pattern with context (all data with regular colors)
+                fig.add_trace(
+                    go.Candlestick(
+                        x=match_data.index,
+                        open=match_data['open'],
+                        high=match_data['high'],
+                        low=match_data['low'],
+                        close=match_data['close'],
+                        increasing_line_color='#26a69a', 
+                        decreasing_line_color='#ef5350',
+                        name="Context"
+                    ),
+                    row=1, col=1
+                )
+                
+                # 2. Highlight the actual pattern in blue (overlay)
+                # Only if the pattern indices are valid
+                if match_start < len(match_data) and match_end < len(match_data):
+                    pattern_data = match_data.iloc[match_start:match_end+1]
+                    fig.add_trace(
+                        go.Candlestick(
+                            x=pattern_data.index,
+                            open=pattern_data['open'],
+                            high=pattern_data['high'],
+                            low=pattern_data['low'],
+                            close=pattern_data['close'],
+                            increasing_line_color='#1E88E5', 
+                            decreasing_line_color='#1E88E5',
+                            name="Pattern Match"
+                        ),
+                        row=1, col=1
+                    )
+                
+                    # 3. Add vertical line at the end of the pattern
+                    if match_end < len(match_data):
+                        fig.add_vline(
+                            x=match_data.index[match_end], 
+                            line_width=2, 
+                            line_dash="dash", 
+                            line_color="#1E88E5",
+                            row=1
+                        )
+                
+                # 4. Add reference pattern (source pattern with context)
+                fig.add_trace(
+                    go.Candlestick(
+                        x=source_data.index,
+                        open=source_data['open'],
+                        high=source_data['high'],
+                        low=source_data['low'],
+                        close=source_data['close'],
+                        increasing_line_color='#26a69a',
+                        decreasing_line_color='#ef5350',
+                        name="Reference Context"
+                    ),
+                    row=2, col=1
+                )
+                
+                # 5. Highlight the pattern part of the reference (blue overlay)
+                # We assume the pattern is at the end of the source data
+                pattern_start = max(0, len(source_data) - pattern_length)
+                pattern_data = source_data.iloc[pattern_start:]
+                
+                fig.add_trace(
+                    go.Candlestick(
+                        x=pattern_data.index,
+                        open=pattern_data['open'],
+                        high=pattern_data['high'],
+                        low=pattern_data['low'],
+                        close=pattern_data['close'],
+                        increasing_line_color='#1E88E5',
+                        decreasing_line_color='#1E88E5',
+                        name="Reference Pattern"
+                    ),
+                    row=2, col=1
+                )
+                
+                # Configure layout to match main chart style
+                # Get regime info
+                match_regime = match.get('regime', 3)
+                match_regime_name = match.get('regime_name', 'Neutral')
+                source_regime = results.get('source_regime', 3)
+                source_regime_name = results.get('source_regime_name', 'Neutral')
+                
+                # Define regime colors
+                regime_colors = {
+                    1: "#4CAF50",  # Bullish-Stable: Green
+                    2: "#8BC34A",  # Bullish-Volatile: Light Green
+                    3: "#9E9E9E",  # Neutral: Grey
+                    4: "#FF9800",  # Bearish-Stable: Orange
+                    5: "#F44336",  # Bearish-Volatile: Red
+                    6: "#2196F3"   # Choppy: Blue
+                }
+                
+                # Get colors for regimes
+                match_color = regime_colors.get(match_regime, "#9E9E9E")
+                source_color = regime_colors.get(source_regime, "#9E9E9E")
+                
+                fig.update_layout(
+                    height=800,  # Tall chart for detail
+                    template="plotly_dark",
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(l=10, r=10, t=50, b=10),
+                    showlegend=False,
+                    xaxis_rangeslider_visible=False,
+                    xaxis2_rangeslider_visible=False
+                )
+                
+                # Add annotations for regime info
+                fig.add_annotation(
+                    text=f"Regime: {match_regime_name}",
+                    xref="paper", yref="paper",
+                    x=0.5, y=1.0,
+                    showarrow=False,
+                    font=dict(color=match_color, size=14),
+                    bgcolor="rgba(0,0,0,0.5)",
+                    bordercolor=match_color,
+                    borderwidth=1,
+                    borderpad=4,
+                    row=1, col=1
+                )
+                
+                fig.add_annotation(
+                    text=f"Regime: {source_regime_name}",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.45,
+                    showarrow=False,
+                    font=dict(color=source_color, size=14),
+                    bgcolor="rgba(0,0,0,0.5)",
+                    bordercolor=source_color,
+                    borderwidth=1,
+                    borderpad=4,
+                    row=2, col=1
+                )
+                
+                return fig
+            
+            # Precompute the final price comparison for each match
+            match_final_results = {}
             for match_idx, match in enumerate(filtered_matches):
                 match_data = pd.DataFrame(match["pattern_data"])
                 
                 # Only analyze if we have enough data after the pattern
                 if len(match_data) > pattern_length:
-                    # Calculate median close price of the pattern part (before the blue line)
-                    pattern_close_prices = match_data.iloc[:pattern_length]['close']
-                    pattern_median_close = pattern_close_prices.median()
+                    # Get the last close price of the pattern part (before the blue line)
+                    pattern_last_close = match_data.iloc[pattern_length-1]['close']
                     
-                    # Calculate median close price of the future part (after the blue line)
-                    future_close_prices = match_data.iloc[pattern_length:]['close']
-                    future_median_close = future_close_prices.median()
+                    # Get the last close price of the future part (after the blue line)
+                    future_last_close = match_data.iloc[-1]['close']
                     
                     # Store comparison result for this match
-                    if future_median_close > pattern_median_close:
-                        match_median_results[match_idx] = "Higher"
-                    elif future_median_close < pattern_median_close:
-                        match_median_results[match_idx] = "Lower"
+                    if future_last_close > pattern_last_close:
+                        match_final_results[match_idx] = "Higher"
+                    elif future_last_close < pattern_last_close:
+                        match_final_results[match_idx] = "Lower"
                     else:
-                        match_median_results[match_idx] = "Unchanged"
+                        match_final_results[match_idx] = "Unchanged"
                 else:
-                    match_median_results[match_idx] = "N/A"  # Not enough future data
+                    match_final_results[match_idx] = "N/A"  # Not enough future data
             
             # Show all matches directly
             for i, match in enumerate(filtered_matches):
-                # Get the median comparison result for this match
-                median_result = match_median_results.get(i, "N/A")
+                # Get the final price comparison result for this match
+                final_result = match_final_results.get(i, "N/A")
                 
                 # Style the result with color
-                if median_result == "Higher":
-                    median_result_styled = f"<span style='color:#4CAF50'>Higher</span>"  # Green
-                elif median_result == "Lower":
-                    median_result_styled = f"<span style='color:#F44336'>Lower</span>"   # Red
+                if final_result == "Higher":
+                    final_result_styled = f"<span style='color:#4CAF50'>Higher</span>"  # Green
+                elif final_result == "Lower":
+                    final_result_styled = f"<span style='color:#F44336'>Lower</span>"   # Red
                 else:
-                    median_result_styled = f"<span style='color:#999999'>{median_result}</span>"  # Grey
+                    final_result_styled = f"<span style='color:#999999'>{final_result}</span>"  # Grey
                 
-                # Header with match info and median comparison - with different score label based on analysis method
+                # Create columns for match header - title on left, button on right
+                st.markdown('<div class="match_header_cols">', unsafe_allow_html=True)
+                match_header_cols = st.columns([0.85, 0.15])
+                
+                # Header with match info, regime and median comparison 
                 score_label = "Feature Distance" if results['type'] == 'feature_pattern' else "Shape Distance"
-                st.markdown(
-                    f"**Match #{i+1}**: {datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')} "
-                    f"({score_label}: {match['distance']:.4f}). Past/future median: {median_result_styled}", 
-                    unsafe_allow_html=True
-                )
+                
+                # Get regime info with appropriate styling based on regime
+                match_regime = match.get('regime', 3)  # Default to neutral if not available
+                match_regime_name = match.get('regime_name', 'Neutral')
+                
+                # Style regimes with colors
+                regime_colors = {
+                    1: "#4CAF50",  # Bullish-Stable: Green
+                    2: "#8BC34A",  # Bullish-Volatile: Light Green
+                    3: "#9E9E9E",  # Neutral: Grey
+                    4: "#FF9800",  # Bearish-Stable: Orange
+                    5: "#F44336",  # Bearish-Volatile: Red
+                    6: "#2196F3"   # Choppy: Blue
+                }
+                regime_color = regime_colors.get(match_regime, "#9E9E9E")
+                regime_styled = f"<span style='color:{regime_color}'>{match_regime_name}</span>"
+                
+                with match_header_cols[0]:
+                    st.markdown(
+                        f"**Match #{i+1}**: {datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')} "
+                        f"({score_label}: {match['distance']:.4f}). Regime: {regime_styled}. Final price: {final_result_styled}", 
+                        unsafe_allow_html=True
+                    )
+                
+                # Add Expand View button on the right
+                with match_header_cols[1]:
+                    # Initialize expanded state for this match if not already in session state
+                    if f"expand_state_{i}" not in st.session_state:
+                        st.session_state[f"expand_state_{i}"] = False
+                    
+                    # No need for per-button custom CSS anymore
+                    
+                    # Button to toggle expanded view
+                    button_label = "Collapse" if st.session_state[f"expand_state_{i}"] else "Expand"
+                    if st.button(button_label, key=f"expand_button_{i}", type="secondary"):
+                        # Toggle the expanded state for this match
+                        st.session_state[f"expand_state_{i}"] = not st.session_state[f"expand_state_{i}"]
+                
+                # Close the match header div
+                st.markdown('</div>', unsafe_allow_html=True)
                 
                 # Create individual figure for this match
                 match_fig = go.Figure()
@@ -2916,6 +4496,466 @@ if st.session_state.search_results:
                 
                 # Display the match chart without controls and ensure full container width
                 # Pass explicit width of 100% to ensure chart uses all available space
-                st.plotly_chart(match_fig, use_container_width=True, config={'displayModeBar': False})
+                # Use consistent chart configuration
+                chart_config = {
+                    'scrollZoom': True,
+                    'displaylogo': False,
+                }
+                st.plotly_chart(match_fig, use_container_width=True, config=chart_config)
+                
+                # If expanded view is toggled for this match, display expanded view right after this chart
+                if st.session_state.get(f"expand_state_{i}", False):
+                    with st.container():
+                        # Add a small visual separator
+                        st.markdown("<div style='border-left: 4px solid #4287f5; padding-left: 10px; margin: 10px 0;'>", unsafe_allow_html=True)
+                        
+                        # Get the pattern length and match date
+                        pattern_length = len(source_pattern)
+                        match_date = datetime.fromisoformat(match['start_time'].replace('Z', '')).strftime('%Y-%m-%d')
+                        match_df = pd.DataFrame(match["pattern_data"])
+                        pattern_indices = (0, pattern_length-1)
+                        
+                        # Create match chart with full context
+                        st.write("**Match Pattern in Full Context**")
+                        
+                        # Get data in datetime format
+                        match_df_dates = match_df.copy()
+                        match_df_dates['datetime'] = [datetime.fromtimestamp(ts/1000) for ts in match_df_dates['timestamp']]
+                        match_start, match_end = pattern_indices
+                        
+                        # Create the context data and charts
+                        # Load data provider to get more context around the match
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        provider = get_data_provider()
+                        
+                        # Define the pattern section - use first pattern_length candles to match normal view
+                        pattern_section = match_df_dates.iloc[:pattern_length]
+                        pattern_midpoint = pattern_section['datetime'].mean()
+                        
+                        # Calculate time range for context - use the same range as the main chart
+                        days_to_load = st.session_state.days_to_load if 'days_to_load' in st.session_state else 30
+                        interval = st.session_state.interval if 'interval' in st.session_state else '30m'
+                        
+                        pattern_midpoint_ts = pattern_midpoint.timestamp() * 1000  # Convert to milliseconds
+                        half_range_ms = days_to_load * 24 * 60 * 60 * 1000 / 2  # Half the range in milliseconds
+                        context_start_ts = pattern_midpoint_ts - half_range_ms
+                        context_end_ts = pattern_midpoint_ts + half_range_ms
+                        
+                        # Convert to ISO format for the API
+                        context_start_time = datetime.fromtimestamp(context_start_ts/1000).isoformat()
+                        context_end_time = datetime.fromtimestamp(context_end_ts/1000).isoformat()
+                        
+                        # Create expanded view match figure
+                        match_exp_fig = go.Figure()
+                        
+                        try:
+                            # Get full context data
+                            context_data = loop.run_until_complete(
+                                provider.get_historical_ohlcv(
+                                    symbol=st.session_state.selected_coin,
+                                    interval=interval,
+                                    start_time=context_start_time,
+                                    end_time=context_end_time
+                                )
+                            )
+                            
+                            if context_data is not None and not context_data.empty:
+                                # Convert timestamp to datetime for plotting
+                                context_data['datetime'] = pd.to_datetime(context_data['timestamp'], unit='ms')
+                                
+                                # Find where our pattern is within this context
+                                pattern_start_time = pattern_section['datetime'].min()
+                                pattern_end_time = pattern_section['datetime'].max()
+                                
+                                # Plot the full context with regular candle colors
+                                match_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=context_data['datetime'],
+                                        open=context_data['open'],
+                                        high=context_data['high'],
+                                        low=context_data['low'],
+                                        close=context_data['close'],
+                                        increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                        decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                        increasing_fillcolor=st.session_state.candle_style['increasing_color'],
+                                        decreasing_fillcolor=st.session_state.candle_style['decreasing_color'],
+                                        name="Context"
+                                    )
+                                )
+                                
+                                # Get exact timestamps from original match data for precise matching
+                                pattern_timestamps = match_df_dates.iloc[:pattern_length]['timestamp'].tolist()
+                                
+                                # Find the indices in context_data that exactly match our pattern timestamps
+                                pattern_in_context = context_data[context_data['timestamp'].isin(pattern_timestamps)]
+                                
+                                if not pattern_in_context.empty:
+                                    # Overlay the pattern with blue candles
+                                    match_exp_fig.add_trace(
+                                        go.Candlestick(
+                                            x=pattern_in_context['datetime'],
+                                            open=pattern_in_context['open'],
+                                            high=pattern_in_context['high'],
+                                            low=pattern_in_context['low'],
+                                            close=pattern_in_context['close'],
+                                            increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                            decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                            name="Pattern Match"
+                                        )
+                                    )
+                                    
+                                    # Removed vertical line as requested
+                            else:
+                                # Fallback to using just the match data if we can't get context
+                                match_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=match_df_dates['datetime'],
+                                        open=match_df_dates['open'],
+                                        high=match_df_dates['high'],
+                                        low=match_df_dates['low'],
+                                        close=match_df_dates['close'],
+                                        increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                        decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                        increasing_fillcolor=st.session_state.candle_style['increasing_color'],
+                                        decreasing_fillcolor=st.session_state.candle_style['decreasing_color'],
+                                        name="Context"
+                                    )
+                                )
+                                
+                                # Overlay pattern section with blue candles
+                                match_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=pattern_section['datetime'],
+                                        open=pattern_section['open'],
+                                        high=pattern_section['high'],
+                                        low=pattern_section['low'],
+                                        close=pattern_section['close'],
+                                        increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                        decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                        name="Pattern Match"
+                                    )
+                                )
+                                
+                        except Exception as e:
+                            st.error(f"Error loading context data: {str(e)}")
+                            # Fallback to just showing what we have
+                            match_exp_fig.add_trace(
+                                go.Candlestick(
+                                    x=match_df_dates['datetime'],
+                                    open=match_df_dates['open'],
+                                    high=match_df_dates['high'],
+                                    low=match_df_dates['low'],
+                                    close=match_df_dates['close'],
+                                    increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                    decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                    name="Match Pattern"
+                                )
+                            )
+                            
+                            # Overlay the pattern part in blue - using the first pattern_length rows
+                            pattern_part = match_df_dates.iloc[:pattern_length]
+                            match_exp_fig.add_trace(
+                                go.Candlestick(
+                                    x=pattern_part['datetime'],
+                                    open=pattern_part['open'],
+                                    high=pattern_part['high'],
+                                    low=pattern_part['low'],
+                                    close=pattern_part['close'],
+                                    increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                    decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                    name="Pattern Match"
+                                )
+                            )
+                        
+                        # Configure the match chart to match main chart style exactly
+                        match_exp_fig.update_layout(
+                            height=690,  # Same as main chart
+                            xaxis_rangeslider_visible=False,
+                            plot_bgcolor=st.session_state.candle_style['background_color'],
+                            paper_bgcolor=st.session_state.candle_style['background_color'],
+                            font=dict(color='white', family="ProtoMono-Light, monospace"),
+                            margin=dict(l=25, r=25, t=15, b=15),
+                            hovermode='x unified',
+                            showlegend=False,
+                            hoverlabel=dict(
+                                bgcolor=st.session_state.candle_style['background_color'],
+                                font_size=14,
+                                font_family="ProtoMono-Light, monospace"
+                            ),
+                            shapes=[],
+                            annotations=[],
+                            xaxis_showticklabels=True,
+                            yaxis_showticklabels=True,
+                            xaxis_showspikes=False,
+                            yaxis_showspikes=False,
+                            modebar_remove=["lasso", "select"],
+                            title=None  # Remove the title
+                        )
+                        
+                        # Update x-axes with grid lines and flat time labels
+                        match_exp_fig.update_xaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            showticklabels=True,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            tickangle=0,  # Flat time labels
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickformat="%m-%d<br>%H:%M",  # Two-line format with month-day on top, hours below
+                            tickmode="auto",
+                            nticks=15,  # Control the number of ticks
+                            ticks="outside",  # Place ticks outside the chart
+                            ticklen=8,  # Longer tick marks
+                            minor_showgrid=True,  # Show minor grid lines too
+                            minor_gridcolor=st.session_state.candle_style['grid_color'],
+                            tickcolor="#999999"
+                        )
+                        
+                        # Use dynamic tick spacing for y-axis based on selected coin
+                        if st.session_state.selected_coin == "ETH":
+                            # ETH uses smaller price increments
+                            tick_spacing = 50    # Grid line every 50 price level for ETH
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 250], value=",.0f"),   # Show every 50 tick label
+                                dict(dtickrange=[250, None], value=",.0f")    # Show only every 250 tick label
+                            ]
+                        else:
+                            # BTC uses larger price increments
+                            tick_spacing = 1000  # Grid line every 1k price level for BTC
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 5000], value=",.0f"),  # Show every 1k tick label
+                                dict(dtickrange=[5000, None], value=",.0f")   # Show only every 5k tick label
+                            ]
+                            
+                        match_exp_fig.update_yaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            dtick=tick_spacing,
+                            tickmode="linear",
+                            tick0=0,
+                            tickformat=",.0f",
+                            tickformatstops=tickformatstops_config,
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickcolor="#999999",
+                            hoverformat=",.0f",
+                            showline=False,
+                            mirror=False
+                        )
+                        
+                        # Display match chart with a unique key
+                        # Use consistent chart configuration
+                        chart_config = {
+                            'scrollZoom': True,
+                            'displaylogo': False,
+                        }
+                        st.plotly_chart(match_exp_fig, use_container_width=True, config=chart_config, key=f"match_exp_chart_{i}")
+                        
+                        # Create reference pattern chart
+                        st.write("**Reference Pattern in Full Context**")
+                        source_exp_fig = go.Figure()
+                        
+                        # We need to get the main chart data which contains the reference pattern
+                        if df is not None and not df.empty:
+                            # This is the main dataframe shown in the candlestick chart
+                            # Get the reference pattern part using the selected range
+                            start_idx = st.session_state.selected_range['start_idx']
+                            end_idx = st.session_state.selected_range['end_idx']
+                            
+                            if start_idx is not None and end_idx is not None and start_idx < len(df) and end_idx < len(df):
+                                # Plot full dataframe with regular colors
+                                source_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=df['datetime'],
+                                        open=df['open'],
+                                        high=df['high'],
+                                        low=df['low'],
+                                        close=df['close'],
+                                        increasing_line_color=st.session_state.candle_style['increasing_line_color'],
+                                        decreasing_line_color=st.session_state.candle_style['decreasing_line_color'],
+                                        increasing_fillcolor=st.session_state.candle_style['increasing_color'],
+                                        decreasing_fillcolor=st.session_state.candle_style['decreasing_color'],
+                                        name="Context"
+                                    )
+                                )
+                                
+                                # Overlay the selected pattern with blue colors
+                                source_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=df.iloc[start_idx:end_idx+1]['datetime'],
+                                        open=df.iloc[start_idx:end_idx+1]['open'],
+                                        high=df.iloc[start_idx:end_idx+1]['high'],
+                                        low=df.iloc[start_idx:end_idx+1]['low'],
+                                        close=df.iloc[start_idx:end_idx+1]['close'],
+                                        increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                        decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                        name="Reference Pattern"
+                                    )
+                                )
+                                
+                                # Removed vertical line as requested
+                            else:
+                                # Fallback to source pattern from match
+                                # Convert source pattern to DataFrame if it's not already
+                                if isinstance(source_pattern, pd.DataFrame):
+                                    source_df = source_pattern.copy()
+                                else:
+                                    source_df = pd.DataFrame(source_pattern)
+                                
+                                # Create datetime values for plotting
+                                source_df['datetime'] = [datetime.fromtimestamp(ts/1000) for ts in source_df['timestamp']]
+                                
+                                # Add source pattern as blue candles
+                                source_exp_fig.add_trace(
+                                    go.Candlestick(
+                                        x=source_df['datetime'],
+                                        open=source_df['open'],
+                                        high=source_df['high'],
+                                        low=source_df['low'],
+                                        close=source_df['close'],
+                                        increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                        decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                        name="Reference Pattern"
+                                    )
+                                )
+                        else:
+                            # Fallback to source pattern from match
+                            # Convert source pattern to DataFrame if it's not already
+                            if isinstance(source_pattern, pd.DataFrame):
+                                source_df = source_pattern.copy()
+                            else:
+                                source_df = pd.DataFrame(source_pattern)
+                            
+                            # Create datetime values for plotting
+                            source_df['datetime'] = [datetime.fromtimestamp(ts/1000) for ts in source_df['timestamp']]
+                            
+                            # Add source pattern as blue candles
+                            source_exp_fig.add_trace(
+                                go.Candlestick(
+                                    x=source_df['datetime'],
+                                    open=source_df['open'],
+                                    high=source_df['high'],
+                                    low=source_df['low'],
+                                    close=source_df['close'],
+                                    increasing_line_color='rgba(66, 135, 245, 0.7)',  # Light blue
+                                    decreasing_line_color='rgba(26, 86, 196, 0.7)',   # Darker blue
+                                    name="Reference Pattern"
+                                )
+                            )
+                        
+                        # Configure the reference chart to match main chart style exactly
+                        source_exp_fig.update_layout(
+                            height=690,  # Same as main chart
+                            xaxis_rangeslider_visible=False,
+                            plot_bgcolor=st.session_state.candle_style['background_color'],
+                            paper_bgcolor=st.session_state.candle_style['background_color'],
+                            font=dict(color='white', family="ProtoMono-Light, monospace"),
+                            margin=dict(l=25, r=25, t=15, b=15),
+                            hovermode='x unified',
+                            showlegend=False,
+                            hoverlabel=dict(
+                                bgcolor=st.session_state.candle_style['background_color'],
+                                font_size=14,
+                                font_family="ProtoMono-Light, monospace"
+                            ),
+                            shapes=[],
+                            annotations=[],
+                            xaxis_showticklabels=True,
+                            yaxis_showticklabels=True,
+                            xaxis_showspikes=False,
+                            yaxis_showspikes=False,
+                            modebar_remove=["lasso", "select"],
+                            title=None  # Remove the title
+                        )
+                        
+                        # Update x-axes with grid lines and flat time labels
+                        source_exp_fig.update_xaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            showticklabels=True,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            tickangle=0,  # Flat time labels
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickformat="%m-%d<br>%H:%M",  # Two-line format with month-day on top, hours below
+                            tickmode="auto",
+                            nticks=15,  # Control the number of ticks
+                            ticks="outside",  # Place ticks outside the chart
+                            ticklen=8,  # Longer tick marks
+                            minor_showgrid=True,  # Show minor grid lines too
+                            minor_gridcolor=st.session_state.candle_style['grid_color'],
+                            tickcolor="#999999"
+                        )
+                        
+                        # Use dynamic tick spacing for y-axis based on selected coin
+                        if st.session_state.selected_coin == "ETH":
+                            # ETH uses smaller price increments
+                            tick_spacing = 50    # Grid line every 50 price level for ETH
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 250], value=",.0f"),   # Show every 50 tick label
+                                dict(dtickrange=[250, None], value=",.0f")    # Show only every 250 tick label
+                            ]
+                        else:
+                            # BTC uses larger price increments
+                            tick_spacing = 1000  # Grid line every 1k price level for BTC
+                            tickformatstops_config = [
+                                dict(dtickrange=[None, 5000], value=",.0f"),  # Show every 1k tick label
+                                dict(dtickrange=[5000, None], value=",.0f")   # Show only every 5k tick label
+                            ]
+                            
+                        source_exp_fig.update_yaxes(
+                            showgrid=True,
+                            gridcolor=st.session_state.candle_style['grid_color'],
+                            gridwidth=0.5,
+                            zeroline=False,
+                            linecolor=st.session_state.candle_style['grid_color'],
+                            dtick=tick_spacing,
+                            tickmode="linear",
+                            tick0=0,
+                            tickformat=",.0f",
+                            tickformatstops=tickformatstops_config,
+                            tickfont=dict(family="ProtoMono-Light, monospace", color="#999999"),
+                            tickcolor="#999999",
+                            hoverformat=",.0f",
+                            showline=False,
+                            mirror=False
+                        )
+                        
+                        # Display reference chart with a unique key
+                        # Use consistent chart configuration
+                        chart_config = {
+                            'scrollZoom': True,
+                            'displaylogo': False,
+                        }
+                        st.plotly_chart(source_exp_fig, use_container_width=True, config=chart_config, key=f"source_exp_chart_{i}")
+                        
+                        # Add a close button
+                        if st.button("Close Expanded View", key=f"close_expand_{i}", use_container_width=True):
+                            st.session_state[f"expand_state_{i}"] = False
+                            st.rerun()
+                        
+                        # Close the container div
+                        st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.info("No matching patterns found.")
+            
+# Clean up old modal variables if present
+if 'show_modal' in st.session_state:
+    del st.session_state['show_modal']
+if 'modal_match_id' in st.session_state:
+    del st.session_state['modal_match_id']
+if 'modal_match_date' in st.session_state:
+    del st.session_state['modal_match_date']
+if 'modal_match_df' in st.session_state:
+    del st.session_state['modal_match_df']
+if 'modal_distance' in st.session_state:
+    del st.session_state['modal_distance']
+if 'modal_pattern_indices' in st.session_state:
+    del st.session_state['modal_pattern_indices']
+if 'modal_median_result' in st.session_state:
+    del st.session_state['modal_median_result']
